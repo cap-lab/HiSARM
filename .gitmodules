@@ -1,0 +1,6 @@
+[submodule "HOPES"]
+	path = HOPES
+	url = https://semo.snu.ac.kr/semo/HOPES.git
+[submodule "SWComponentLib"]
+	path = SWComponentLib
+	url = https://semo.snu.ac.kr/semo/swcomponentlib.git
