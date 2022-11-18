@@ -3,10 +3,11 @@
 
 #include "semo_common.h"
 
-typedef enum _RESOURCE {
+typedef enum _RESOURCE_ID {
 <#list resourceList as resource>
     ID_RESOURCE_${resource},
 </#list>
+    ID_RESOURCE_LAST
 } RESOURCE_ID;
 
 typedef enum _RESOURCE_STATE {

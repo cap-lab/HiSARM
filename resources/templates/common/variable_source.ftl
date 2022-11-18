@@ -9,15 +9,15 @@ VARIABLE_TYPE_${variable.type.variableType.name} variable_buffer_of_${variable.i
 ${variable.type.variableType.type.getValue()} variable_buffer_of_${variable.id}[${variable.type.variableType.count}]<#if variable.defaultValue?has_content> = {<#list variable.defaultValue as value> ${value},</#list>}</#if>;
     </#if>
 </#list>
-int32 variable_buffer_of_leader[2];
-int32 variable_buffer_of_group[1];
+semo_int32 variable_buffer_of_leader[2];
+semo_int32 variable_buffer_of_group[1];
 
 // VARIABEL RELATION DEFINE
 <#list variableList as variable>
     <#if variable.childVariableList?size gt 0>
-void variable_relation_of_${variable.id}[${variable.type.variableType.count}] = {
+void *variable_relation_of_${variable.id}[${variable.type.variableType.count}] = {
         <#list variable.childVariableList as childVariable>
-    variable_buffer_of_${childVariable.id}},
+    variable_buffer_of_${childVariable.id},
         </#list>
 };
     </#if>
@@ -26,7 +26,7 @@ void variable_relation_of_${variable.id}[${variable.type.variableType.count}] = 
 // VARIABLE DEFINE
 <#list variableList as variable>
 VARIABLE variable_${variable.id} = {
-    ${variable.type.variableType.size}, variable_buffer_of_${variable.id}, ${variable.getChildVariableType().getVariableType().getSize()}, ${variable.childVariableList?size}, variable_relation_of_${variable.id}
+    ${variable.type.variableType.size}, variable_buffer_of_${variable.id}, ${variable.getChildVariableType().getVariableType().getSize()}, ${variable.childVariableList?size}, <#if variable.childVariableList?size gt 0>variable_relation_of_${variable.id}<#else>NULL</#if>
 };
 </#list>
 VARIABLE variable_leader = {

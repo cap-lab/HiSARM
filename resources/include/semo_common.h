@@ -21,7 +21,7 @@ extern "C"
         SEMO_DIRECTION_OUT
     } SEMO_DIRECTION;
 
-    typedef enum _STATE
+    typedef enum _SEMO_STATE
     {
         SEMO_RUN,
         SEMO_STOP,

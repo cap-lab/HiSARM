@@ -6,15 +6,15 @@
 #include "${robotId}_group.h"
 
 // MODE STATE DEFINE
-typedef enum _MODE {
+typedef enum _MODE_ID {
 <#list modeList as mode>
     ID_MODE_${mode.modeId},
 </#list>
 } MODE_ID;
 
-typedef struct _MODE_INFO {
-    MODE_ID mode_id
-    STATE state;
+typedef struct _MODE {
+    MODE_ID mode_id;
+    SEMO_STATE state;
     semo_int32 service_list_size;
     SERVICE_ID *service_list;
     GROUP_ID group;
@@ -22,6 +22,6 @@ typedef struct _MODE_INFO {
 
 extern MODE mode_list[${modeList?size}];
 
-void run_mode(semo_int32 mode_id);
-void stop_mode(semo_int32 mode_id);
+void run_mode(MODE_ID mode_id);
+void stop_mode(MODE_ID mode_id);
 #endif

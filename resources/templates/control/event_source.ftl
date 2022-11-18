@@ -1,5 +1,6 @@
 #include "${robotId}_event.h"
 #include "${robotId}_port.h"
+#include <string.h>
 
 semo_int8 event_list[${eventList?size}] = {<#list 1..eventList?size as i>FALSE,</#list>};
 semo_int8 event_occured = FALSE;
@@ -9,8 +10,8 @@ void event_list_init() {
 }
 
 void event_polling() {
-    semo_int32 dataNum = 0;
-    semo_int32 dataLen = 0;
+    int dataNum = 0;
+    int dataLen = 0;
     semo_int32 event;
     for (int i = 0 ; i < throw_in_port_list_size ; i++)
     {

@@ -9,7 +9,7 @@ typedef struct _VARIABLE
     void *buffer;
     semo_int32 element_size;
     semo_int32 element_list_size;
-    void *element_list;
+    void **element_list;
 } VARIABLE;
 
 void fill_buffer_from_elements(VARIABLE *variable);

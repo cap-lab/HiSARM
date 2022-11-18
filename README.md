@@ -2,10 +2,14 @@
 
 # Required
 
-- pymongo
 - Visual studio code
-- ...
+- ant
 
+- pymongo
+- pyyaml
+- paramiko
+- scp
+- ...
 
 
 

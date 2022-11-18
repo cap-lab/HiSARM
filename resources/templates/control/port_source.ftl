@@ -1,4 +1,5 @@
 #include "${robotId}_port.h"
+#include "${robotId}_common.h"
 #include "${robotId}_variable.h"
 
 // ACTION TASK PORT DEFINE
@@ -26,7 +27,7 @@ PORT group_port_of_${action.actionTask.name} = {
 </#list>
 
 <#list commPortList as commPort>
-STATIC PORT port_of_${commPort.name} = {"${commPort.name}", -1, NULL};
+static PORT port_of_${commPort.name} = {"${commPort.name}", -1, NULL};
 </#list>
 
 <#list commStatementList as commStatement>
@@ -39,14 +40,14 @@ COMM_PORT throw_out_port_of_${throwStatement.statementId} = {&port_of_${throwSta
 
 COMM_PORT throw_in_port_list[${throwStatementList?size}] = {
     <#list throwStatementList as throwStatement>
-    {port_of_${throwStatement.th.inPort.port.name}, NULL},
+    {&port_of_${throwStatement.th.inPort.port.name}, NULL},
     </#list>
 };
 semo_int32 throw_in_port_list_size = ${throwStatementList?size};
 
-PORT leader_task_port = {"${leaderPort.name}", -1, &variable_leader};
+PORT port_of_leader = {"${leaderPort.name}", -1, &variable_leader};
 
-STATIC void action_port_init() {
+static void action_port_init() {
 <#list actionList as action>
     <#if action.inputList?size gt 0 >
     for (int i = 0 ; i < ${action.inputList?size} ; i++)
@@ -63,14 +64,14 @@ STATIC void action_port_init() {
 </#list>
 }
 
-STATIC void comm_port_init() {
+static void comm_port_init() {
 <#list commPortList as commPort>
     UFPort_Initialize(CONTROL_TASK_ID, port_of_${commPort.name}.portName, &(port_of_${commPort.name}.portId));
 </#list>
 }
 
-STATIC void additional_port_init() {
-    UFPort_Initialize(CONTROL_TASK_ID, leader_task_port.portName, &(leader_task_port.portId));
+static void additional_port_init() {
+    UFPort_Initialize(CONTROL_TASK_ID, port_of_leader.portName, &(port_of_leader.portId));
 }
 
 void port_init() {

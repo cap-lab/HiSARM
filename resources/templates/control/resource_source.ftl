@@ -1,4 +1,4 @@
-#include <${robotId}_resource.h>
+#include "${robotId}_resource.h"
 
 // DEFINE RESOURCE
 RESOURCE resource_list[${resourceList?size}] = {

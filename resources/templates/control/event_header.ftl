@@ -14,5 +14,6 @@ extern semo_int8 event_list[${eventList?size}];
 extern semo_int8 event_occured;
 
 void event_list_init();
+void event_polling();
 
 #endif

@@ -2,8 +2,8 @@
 #define __SEMO_PORT_HEADER__
 
 #include <UFPort.h>
-#include "semo_variable.h"
 #include "semo_common.h"
+#include "semo_variable.h"
 
 typedef struct _PORT
 {
@@ -55,7 +55,7 @@ typedef struct _MULTICAST_PORT
 } MULTICAST_PORT;
 
 typedef semo_int8 LIBRARY_AVAIL_FUNC();
-typedef semo_int8 LIBRARY_GET_FUNC(void *buffer);
+typedef void LIBRARY_GET_FUNC(void *buffer);
 typedef void LIBRARY_SET_FUNC(void *buffer);
 typedef struct _SHARED_DATA_PORT
 {

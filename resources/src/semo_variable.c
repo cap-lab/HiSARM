@@ -1,4 +1,5 @@
 #include "semo_variable.h"
+#include <string.h>
 
 void fill_buffer_from_elements(VARIABLE *variable)
 {

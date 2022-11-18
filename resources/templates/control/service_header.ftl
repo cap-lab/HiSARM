@@ -11,9 +11,9 @@ typedef enum _SERVICE_ID {
 } SERVICE_ID;
 
 // DECLARE EXTERN FUNCTION
-void init_service();
+void service_init();
 void execute_service();
 void run_service(SERVICE_ID service_id, GROUP_ID group);
-void stop_service(semo_int32 service_id);
+void stop_service(SERVICE_ID service_id);
 
 #endif

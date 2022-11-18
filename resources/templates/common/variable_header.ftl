@@ -17,5 +17,6 @@ typedef enum _VARIABLE_${variableType.name} {
 extern VARIABLE variable_${variable.id};
 </#list>
 extern VARIABLE variable_leader;
+extern VARIABLE variable_group;
 
 #endif

@@ -1,14 +1,15 @@
 <#macro INDENT indentNum><#if indentNum gt 0><#list 1..indentNum as i>    </#list></#if></#macro>
 
 <#macro TRANSITION statement condition service indentNum>
-            <@INDENT indentNum/>service_list[ID_SERVICE_${service.serviceId}].current_statement_id = ID_SERVICE_${statement.getNextStatement(service.getStatementList(), condition).getStatementId()};
+            <@INDENT indentNum/>service_list[ID_SERVICE_${service.serviceId}].current_statement_id = ID_STATEMENT_${statement.getNextStatement(service.getStatementList(), condition).getStatementId()};
 </#macro>
 
 <#macro ACTION statement service>
-            ACTION_TASK *action = get_action_task(ID_ACTION_TYPE_${statement.statement.statement.actionName});
+            ACTION_MAP *action_map = get_action_map(&service_list[service_index], ID_ACTION_TYPE_${statement.statement.statement.actionName});
+            ACTION_TASK *action = get_action_task(action_map->action_task_list_size, action_map->action_task_list);
             int dataLen;
             
-            if (action->state == STOP) 
+            if (action->state == SEMO_STOP) 
             {
                 semo_int8 resource_conflict = FALSE;
                 for(int resource_index = 0 ; resource_index < action->resource_list_size ; resource_index++)
@@ -16,7 +17,7 @@
                     RESOURCE *resource = resource_list + action->resource_list[resource_index];
                     if (resource->state == OCCUPIED)
                     {
-                        action_list[resource->action_id].state = WRAPUP
+                        action_task_list[resource->action_id].state = SEMO_WRAPUP;
                         resource_conflict = TRUE;
                     }
                 }
@@ -30,16 +31,16 @@
                     fill_buffer_from_elements(action->input_port_list[port_index].variable);
                     UFPort_WriteToBuffer(action->input_port_list[port_index].portId, (unsigned char*) action->input_port_list[port_index].variable->buffer, action->input_port_list[port_index].variable->size, 0, &dataLen);
                 }
-                if (action->group != NULL) 
+                if (action->groupPort != NULL) 
                 {
-                    UFPort_WriteToBuffer(action->groupPort.portId, (unsigned char*) service_list[service_index].group, sizeof(semo_int32), 0, &dataLen);
+                    UFPort_WriteToBuffer(action->groupPort->portId, (unsigned char*) service_list[service_index].group, sizeof(GROUP_ID), 0, &dataLen);
                 }
 
-                UFControl_RunTask(CONTROL_TASK_ID, action->action_task_id);
-                action->state = RUN;
-                SEMO_LOG_DEBUG("New action (task %s)", , action->task_name);
+                UFControl_RunTask(CONTROL_TASK_ID, action->task_name);
+                action->state = SEMO_RUN;
+                SEMO_LOG_DEBUG("New action (task %s)", action->task_name);
             }
-            if (action->return_immediate == TRUE || action->state == WRAPUP)
+            if (action->return_immediate == TRUE || action->state == SEMO_WRAPUP || action->state == SEMO_STOP)
             {
                 <@TRANSITION statement "TRUE" service 1/>
                 for (int port_index = 0 ; port_index < action->output_list_size ; port_index++)
@@ -106,6 +107,7 @@
 </#macro>
 
 <#macro THROW statement service>
+            int dataLen;
             semo_int32 event = ID_EVENT_${statement.statement.statement.event.name};
             event_list[event] = TRUE;
             <#if statement.statement.statement.isBroadcast() == true>

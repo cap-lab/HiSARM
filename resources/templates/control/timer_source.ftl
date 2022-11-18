@@ -1,18 +1,19 @@
 #include "${robotId}_timer.h"
-#include "UFTimre.h"
+#include "${robotId}_common.h"
+#include "UFTimer.h"
 
-const semo_int32 timerNum = ${timerCount};
+const semo_int32 timerNum = ${timerCount+1};
 
-TIMER timerList[${timerCount}] = {
-<#list 1..timerCount as timerIndex>
-    {-1, -1, -1, -1, FALSE},
+TIMER timerList[${timerCount+1}] = {
+<#list 0..timerCount as timerIndex>
+    {-1, -1, -1, FALSE},
 </#list>
 };
 
-TIMER* get_timer(semo_int32 serviceId, semo_int32 statementId) {
+TIMER* get_timer(semo_int32 service_id, semo_int32 statement_id) {
     for (int i = 0 ; i < timerNum ; i++)
     {
-        if(timerList[i].serviceId == serviceId && timerList[i].statementId == statementId)
+        if(timerList[i].service_id == service_id && timerList[i].statement_id == statement_id)
         {
             return &(timerList[i]);
         }
@@ -20,16 +21,15 @@ TIMER* get_timer(semo_int32 serviceId, semo_int32 statementId) {
     return NULL;
 }
 
-TIMER* new_timer(int time, char *unit, semo_int32 serviceId, semo_int32 statementId) {
-    int uem_result;
+TIMER* new_timer(int time, char *unit, semo_int32 service_id, semo_int32 statement_id) {
     for (int i = 0 ; i < timerNum ; i++)
     {
-        if(timerList[i].timerId == -1)
+        if(timerList[i].timer_id == -1)
         {
-            timerList[i].serviceId = serviceId;
-            timerList[i].statementId = statementId;
+            timerList[i].service_id = service_id;
+            timerList[i].statement_id = statement_id;
             timerList[i].alarmed = FALSE;
-            uem_result = UFTimer_SetAlarm(CONTROL_TASK_ID, time, unit, &(timerList[i].timerId));
+            UFTimer_SetAlarm(CONTROL_TASK_ID, time, unit, &(timerList[i].timer_id));
             return &(timerList[i]);
         }
     }
@@ -39,10 +39,10 @@ TIMER* new_timer(int time, char *unit, semo_int32 serviceId, semo_int32 statemen
 void remove_timer(TIMER* timer) {
     if(timer != NULL)
     {
-        UFTimer_Reset(CONTROL_TASK_ID, timer->timerId);
-        timer->timerId = -1;
-        timer->serviceId = -1;
-        timer->statementId = -1;
+        UFTimer_Reset(CONTROL_TASK_ID, timer->timer_id);
+        timer->timer_id = -1;
+        timer->service_id = -1;
+        timer->statement_id = -1;
         timer->alarmed = FALSE;
     }
 }
@@ -50,7 +50,7 @@ void remove_timer(TIMER* timer) {
 void remove_all_timer() {
 	for (int i = 0 ; i < timerNum ; i++)
 	{
-		if (timerList[i].timerId != -1)
+		if (timerList[i].timer_id != -1)
 		{
             remove_timer(&(timerList[i]));
 		}
@@ -60,7 +60,7 @@ void remove_all_timer() {
 int timer_check(TIMER *timer) {
     if(timer != NULL)
     {
-        UFTimer_GetAlarmed(CONTROL_TASK_ID, timer->timerId, &(timer->alarmed));
+        UFTimer_GetAlarmed(CONTROL_TASK_ID, timer->timer_id, &(timer->alarmed));
         return timer->alarmed;
     }
     return FALSE;

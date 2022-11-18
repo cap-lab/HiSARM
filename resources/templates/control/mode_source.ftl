@@ -1,4 +1,5 @@
 #include "${robotId}_mode.h"
+#include "${robotId}_port.h"
 
 // DEFINE MODE SERVICE LIST
 <#list modeList as mode>
@@ -10,15 +11,15 @@ SERVICE_ID service_list_of_${mode.modeId}[${mode.serviceList?size}] = {
 </#list>
 
 // DEFINE MODE
-MODE_INFO mode_list[${modeList?size}] = {
+MODE mode_list[${modeList?size}] = {
 <#list modeList as mode>
-    {ID_MODE_${mode.modeId}, STOP, ${mode.serviceList?size}, service_list_of_${mode.modeId}, ID_GROUP_${mode.groupId}},
+    {ID_MODE_${mode.modeId}, SEMO_STOP, ${mode.serviceList?size}, service_list_of_${mode.modeId}, ID_GROUP_${mode.groupId}},
 </#list>
 };
 
 void stop_mode(MODE_ID mode_id)
 {
-    mode_list[mode_id].state = STOP;
+    mode_list[mode_id].state = SEMO_STOP;
     for (int i = 0 ; i < mode_list[mode_id].service_list_size; i++)
     {
         stop_service(mode_list[mode_id].service_list[i]);
@@ -29,23 +30,23 @@ void stop_mode(MODE_ID mode_id)
         int dataLen;
         ((semo_int32 *)port_of_leader.variable->buffer)[0] = group_list[0];
         ((semo_int32 *)port_of_leader.variable->buffer)[1] = FALSE;
-        UFPort_WriteToQueue(port_of_leader.portId, (unsigend char *) port_of_leader.variable->buffer, port_of_leader.variable->size, 0, &dataLen);
+        UFPort_WriteToQueue(port_of_leader.portId, (unsigned char *) port_of_leader.variable->buffer, port_of_leader.variable->size, 0, &dataLen);
     }
 }
 
 void run_mode(MODE_ID mode_id)
 {
-    mode_list[mode_id].state = RUN;
+    mode_list[mode_id].state = SEMO_RUN;
     for (int i = 0 ; i < mode_list[mode_id].service_list_size; i++)
     {
-        run_service(mode_list[mode_id].service_list[i], group_scope);
+        run_service(mode_list[mode_id].service_list[i], mode_list[mode_id].group);
     }
     if (group_state_list[mode_list[mode_id].group] == 0) 
     {
         int dataLen;
         ((semo_int32 *)port_of_leader.variable->buffer)[0] = group_list[0];
         ((semo_int32 *)port_of_leader.variable->buffer)[1] = TRUE;
-        UFPort_WriteToQueue(port_of_leader.portId, (unsigend char *) port_of_leader.variable->buffer, port_of_leader.variable->size, 0, &dataLen);
+        UFPort_WriteToQueue(port_of_leader.portId, (unsigned char *) port_of_leader.variable->buffer, port_of_leader.variable->size, 0, &dataLen);
     }
     group_state_list[group_list[0]] = group_state_list[group_list[0]] + 1;
 }

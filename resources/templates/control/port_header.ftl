@@ -27,7 +27,7 @@ extern COMM_PORT throw_out_port_of_${throwStatement.statementId};
 extern COMM_PORT throw_in_port_list[${throwStatementList?size}];
 extern semo_int32 throw_in_port_list_size;
 
-extern PORT leader_task_port;
+extern PORT port_of_leader;
 
 void port_init();
 #endif
