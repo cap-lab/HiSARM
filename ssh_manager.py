@@ -50,3 +50,8 @@ class SSHManager:
         """Send a single command"""
         stdin, stdout, stderr = self.ssh_client.exec_command(command)
         return stdout.readlines()
+
+    def send_command_by_channel(self, command):
+        transport = self.ssh_client.get_transport()
+        channel = transport.open_session()
+        channel.exec_command(command)

@@ -5,6 +5,7 @@ import sys
 import subprocess
 import platform
 import yaml
+import pickle
 
 from pymongo import MongoClient
 
@@ -16,6 +17,9 @@ ARDUINO_DIR = "/home/caplab/arduino-ide_2.0.1_Linux_64bit"
 PKG_CONFIG_DIR = "/home/caplab/cross_env/usr/local/lib/arm-linux-gnueabihf/pkgconfig:/home/caplab/cross_env/usr/lib/arm-linux-gnueabihf/pkgconfig:/home/caplab/cross_env/usr/share/pkgconfig"
 SYSROOT_DIR = "/home/caplab/cross_env"
 UPLOAD_TARGET_DIR = "~/workspace/uploaded_binary"
+TARGET_OS_BINARY_NAME = "proc_os"
+TARGET_NONOS_BINARY_NAME = "proc_nonos.bin"
+NONOS_BOARD_NAME = "OpenCR"
 
 def getLatestDirectory(generatedDirPath, projectName):
     file_name_time_list = []
@@ -96,8 +100,8 @@ def getMatchedRobotFromDirName(dirName, robotList):
             break
     return matched_name
 
-def getUploadTargetIP(robot_name, robotImplCollection):
-    robot_data = robotImplCollection.find_one({"RobotId": robot_name})
+def getUploadTargetIP(robotName, robotImplCollection):
+    robot_data = robotImplCollection.find_one({"RobotId": robotName})
     for robot_comm in robot_data['CommunicationInfo']:
         if robot_comm['type'] == "EThernet/Wi-Fi":
             ip_address = robot_comm['address']['ip']
@@ -107,6 +111,7 @@ def getUploadTargetIP(robot_name, robotImplCollection):
 
 
 def uploadRobotBinary(projectDirPath, dbHandle, robotList):
+    uploaded_robot_addr_list = []
     working_dir_path = os.getcwd()
     robotImpl_collection = dbHandle['RobotImpl']
     os.chdir(projectDirPath)
@@ -122,15 +127,22 @@ def uploadRobotBinary(projectDirPath, dbHandle, robotList):
             #ssh_manager.create_ssh_client("192.168.50.5")
             out = ssh_manager.send_command("mkdir " + UPLOAD_TARGET_DIR) 
             if target == "OS":
-                out = ssh_manager.send_file("./proc", os.path.join(UPLOAD_TARGET_DIR, "proc_os"))
+                out = ssh_manager.send_file("./proc", os.path.join(UPLOAD_TARGET_DIR, TARGET_OS_BINARY_NAME))
             elif target == "NonOS":
-                out = ssh_manager.send_file(os.path.join("./build-OpenCR", file_name + ".bin"), os.path.join(UPLOAD_TARGET_DIR, "proc_nonos.bin"))
-                out = ssh_manager.send_command("~/tools/opencr_ld /dev/ttyACM0 115200 " + os.path.join(UPLOAD_TARGET_DIR, "proc_nonos.bin") + " 1") 
+                out = ssh_manager.send_file(os.path.join("./build-" + NONOS_BOARD_NAME, file_name + ".bin"), os.path.join(UPLOAD_TARGET_DIR, TARGET_NONOS_BINARY_NAME))
+                out = ssh_manager.send_command("~/tools/opencr_ld /dev/ttyACM0 115200 " + os.path.join(UPLOAD_TARGET_DIR, TARGET_NONOS_BINARY_NAME) + " 1") 
             ssh_manager.close_ssh_client()
             print("upload binary end: " + file_name)
+            if ip_address not in uploaded_robot_addr_list:
+                uploaded_robot_addr_list.append(ip_address)
 
             os.chdir("..")
     os.chdir(working_dir_path)
+    return uploaded_robot_addr_list
+
+def writeRobotIpLists(robotAddrList):
+    with open("robot_address.pickle",'wb') as f:
+        pickle.dump(robotAddrList, f)
 
 
 if platform.system() == "Windows":
@@ -168,6 +180,10 @@ print ("### BIO SW Upload is started! ############")
 yaml_info = getYamlConfig(sys.argv[1])
 db_handle = getMongoDB(yaml_info)
 
-uploadRobotBinary(project_dir_path, db_handle, yaml_info['robotList'])
+robot_addr_list = uploadRobotBinary(project_dir_path, db_handle, yaml_info['robotList'])
+writeRobotIpLists(robot_addr_list)
 print ("### BIO SW Upload is done! ###############")
+
+
+
 
