@@ -20,6 +20,7 @@ UPLOAD_TARGET_DIR = "~/workspace/uploaded_binary"
 TARGET_OS_BINARY_NAME = "proc_os"
 TARGET_NONOS_BINARY_NAME = "proc_nonos.bin"
 NONOS_BOARD_NAME = "OpenCR"
+ROBOT_ADDDR_FILE_NAME = "robot_address.pickle"
 
 def getLatestDirectory(generatedDirPath, projectName):
     file_name_time_list = []
@@ -50,17 +51,22 @@ def checkBuildTarget():
     else:
         return "Invalid"
 
+def runCommand(command):
+    ret = os.WEXITSTATUS(os.system(command))
+    if ret != 0:
+        raise Exception("Command - " + command) 
+
 def buildOSTarget():
     os.environ["PKG_CONFIG_LIBDIR"] = PKG_CONFIG_DIR
-    os.system("chmod +x ./preinstall.sh")
-    os.system("./preinstall.sh")
-    os.system("./configure CFLAGS=\"--sysroot=" + SYSROOT_DIR + " -O2\"  CXXFLAGS=\"--sysroot=" + SYSROOT_DIR + " -O2\" --host=arm-linux-gnueabihf")
-    os.system("make -j")
+    runCommand("chmod +x ./preinstall.sh")
+    runCommand("./preinstall.sh")
+    runCommand("./configure CFLAGS=\"--sysroot=" + SYSROOT_DIR + " -O2\"  CXXFLAGS=\"--sysroot=" + SYSROOT_DIR + " -O2\" --host=arm-linux-gnueabihf")
+    runCommand("make -j")
 
 def buildNonOSTarget():
     os.environ["PKG_CONFIG_LIBDIR"] = ""
     os.environ["ARDUINO_DIR"] = ARDUINO_DIR
-    os.system("make -j")
+    runCommand("make -j")
 
 def buildAllDevices(projectDirPath):
     working_dir_path = os.getcwd()
@@ -69,12 +75,15 @@ def buildAllDevices(projectDirPath):
         if os.path.isdir(file_name):
             os.chdir(file_name)
             target = checkBuildTarget()
-            if target == "OS":
-                buildOSTarget()
-            elif target == "NonOS":
-                buildNonOSTarget()
+            try:
+                if target == "OS":
+                    buildOSTarget()
+                elif target == "NonOS":
+                    buildNonOSTarget()
+            except Exception as e:  
+                print("Build error on \"" + file_name + "\": ", e)
+                sys.exit(1)
             os.chdir("..")
-
     os.chdir(working_dir_path)
 
 def getYamlConfig(yamlPath):
@@ -141,7 +150,7 @@ def uploadRobotBinary(projectDirPath, dbHandle, robotList):
     return uploaded_robot_addr_list
 
 def writeRobotIpLists(robotAddrList):
-    with open("robot_address.pickle",'wb') as f:
+    with open(ROBOT_ADDDR_FILE_NAME,'wb') as f:
         pickle.dump(robotAddrList, f)
 
 
@@ -155,6 +164,9 @@ project_name = sys.argv[2].rstrip('.bdl')
 print("arguments: " + sys.argv[1] + "," + sys.argv[2])
 
 
+# remove old roboto address file
+if os.path.exists(ROBOT_ADDDR_FILE_NAME):
+    os.remove(ROBOT_ADDDR_FILE_NAME)
 
 
 print ("### BIO SW Code generation is started! ###")
