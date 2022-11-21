@@ -1,6 +1,8 @@
 #include "${robotId}_port.h"
 #include "${robotId}_common.h"
 #include "${robotId}_variable.h"
+#include "${robotId}_team.h"
+#include "semo_logger.h"
 
 // ACTION TASK PORT DEFINE
 
@@ -31,34 +33,51 @@ static PORT port_of_${commPort.name} = {"${commPort.name}", -1, NULL};
 </#list>
 
 <#list commStatementList as commStatement>
-COMM_PORT comm_port_of_${commStatement.statementId} = {&port_of_${commStatement.port.name}, &variable_${commStatement.comm.variable.id}};
+COMM_PORT comm_port_of_${commStatement.statementId}[${commStatement.comm.portList?size}] = {
+    <#list commStatement.comm.portList as commPort>
+    {&port_of_${commPort.port.name}, &variable_${commPort.variable.id}, ID_TEAM_${commPort.port.counterTeam}},
+    </#list>
+};
+semo_int32 comm_port_of_${commStatement.statementId}_size = ${commStatement.comm.portList?size};
 </#list>
 
 <#list throwStatementList as throwStatement>
-COMM_PORT throw_out_port_of_${throwStatement.statementId} = {&port_of_${throwStatement.th.outPort.port.name}, NULL};
+COMM_PORT throw_out_port_of_${throwStatement.statementId} = {&port_of_${throwStatement.th.outPort.port.name}, NULL, 0};
 </#list>
 
 COMM_PORT throw_in_port_list[${throwStatementList?size}] = {
     <#list throwStatementList as throwStatement>
-    {&port_of_${throwStatement.th.inPort.port.name}, NULL},
+    {&port_of_${throwStatement.th.inPort.port.name}, NULL, 0},
     </#list>
 };
 semo_int32 throw_in_port_list_size = ${throwStatementList?size};
 
 PORT port_of_leader = {"${leaderPort.name}", -1, &variable_leader};
 
+COMM_PORT* get_team_port(COMM_PORT* port_list, semo_int32 port_list_size, semo_int32 team_id)
+{
+    for (semo_int32 i = 0; i < port_list_size; i++) 
+    {
+        if (port_list[i].team_id == team_id) 
+        {
+            return &port_list[i];
+        }
+    }
+    return NULL;
+}
+
 static void action_port_init() {
 <#list actionList as action>
     <#if action.inputList?size gt 0 >
     for (int i = 0 ; i < ${action.inputList?size} ; i++)
     {
-        UFPort_Initialize(CONTROL_TASK_ID, input_port_of_${action.actionTask.name}[i].portName, &(input_port_of_${action.actionTask.name}[i].portId));
+        UFPort_Initialize(CONTROL_TASK_ID, input_port_of_${action.actionTask.name}[i].port_name, &(input_port_of_${action.actionTask.name}[i].port_id));
     }
     </#if>
     <#if action.outputList?size gt 0 >
     for (int i = 0 ; i < ${action.outputList?size} ; i++)
     {
-        UFPort_Initialize(CONTROL_TASK_ID, output_port_of_${action.actionTask.name}[i].portName, &(output_port_of_${action.actionTask.name}[i].portId));
+        UFPort_Initialize(CONTROL_TASK_ID, output_port_of_${action.actionTask.name}[i].port_name, &(output_port_of_${action.actionTask.name}[i].port_id));
     }
     </#if>
 </#list>
@@ -66,15 +85,16 @@ static void action_port_init() {
 
 static void comm_port_init() {
 <#list commPortList as commPort>
-    UFPort_Initialize(CONTROL_TASK_ID, port_of_${commPort.name}.portName, &(port_of_${commPort.name}.portId));
+    UFPort_Initialize(CONTROL_TASK_ID, port_of_${commPort.name}.port_name, &(port_of_${commPort.name}.port_id));
 </#list>
 }
 
 static void additional_port_init() {
-    UFPort_Initialize(CONTROL_TASK_ID, port_of_leader.portName, &(port_of_leader.portId));
+    UFPort_Initialize(CONTROL_TASK_ID, port_of_leader.port_name, &(port_of_leader.port_id));
 }
 
 void port_init() {
+    SEMO_LOG_INFO("port init");
     action_port_init();
     comm_port_init();
     additional_port_init();

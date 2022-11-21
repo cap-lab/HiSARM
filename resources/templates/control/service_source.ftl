@@ -74,6 +74,7 @@ typedef enum _SERVICE_${service.serviceId} {
 
 void stop_service(SERVICE_ID service_id)
 {
+    SEMO_LOG_INFO("stop service %d", service_id);
     service_list[service_id].state = SEMO_STOP;
     for (int i = 0 ; i < service_list[service_id].action_list_size ; i++)
     {
@@ -90,12 +91,14 @@ void stop_service(SERVICE_ID service_id)
 
 void run_service(SERVICE_ID service_id, GROUP_ID group)
 {
+    SEMO_LOG_INFO("run service %d", service_id);
     service_list[service_id].state = SEMO_RUN;
     service_list[service_id].current_statement_id = 0;
     service_list[service_id].group = group;
 }
 
 void service_init() {
+    SEMO_LOG_INFO("service init");
     for(int i = 0 ; i < ${serviceList?size} ; i++)
     {
         service_list[i].state = SEMO_STOP;
@@ -159,6 +162,8 @@ static void execute_service_${service.serviceId}(int service_index) {
 		}
 	</#list>
 	}
+_EXIT:
+    return;
 }
 
 </#list>

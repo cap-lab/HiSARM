@@ -45,6 +45,14 @@ extern "C"
 #define SEMO_INVALID (0)
 #endif
 
+#ifndef SEMO_INCREASE
+#define SEMO_INCREASE (1)
+#endif
+
+#ifndef SEMO_DECREASE
+#define SEMO_DECREASE (-1)
+#endif
+
 #ifndef NULL
 #define NULL (void *)(0)
 #endif

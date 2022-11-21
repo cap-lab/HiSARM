@@ -1,18 +1,19 @@
 #include "${robotId}_variable.h"
+#include "${robotId}_team.h"
 #include "semo_common.h"
 
 // VARIABLE BUFFER DEFINE
 <#list variableList as variable>
     <#if variable.type.variableType.type.getValue() == "enum">
-VARIABLE_TYPE_${variable.type.variableType.name} variable_buffer_of_${variable.id}[${variable.type.variableType.count}]<#if variable.defaultValue?has_content> = {<#list variable.defaultValue as value> ${value},</#list>}</#if>;
+VARIABLE_TYPE_${variable.type.variableType.name} variable_buffer_of_${variable.id}[${variable.type.variableType.count}]<#if variable.defaultValue?has_content> = {${variable.defaultValue}}</#if>;
     <#else>
-${variable.type.variableType.type.getValue()} variable_buffer_of_${variable.id}[${variable.type.variableType.count}]<#if variable.defaultValue?has_content> = {<#list variable.defaultValue as value> ${value},</#list>}</#if>;
+${variable.type.variableType.type.getValue()} variable_buffer_of_${variable.id}[${variable.type.variableType.count}]<#if variable.defaultValue?has_content> = {${variable.defaultValue}}</#if>;
     </#if>
 </#list>
 semo_int32 variable_buffer_of_leader[2];
 semo_int32 variable_buffer_of_group[1];
 
-// VARIABEL RELATION DEFINE
+// VARIABLE RELATION DEFINE
 <#list variableList as variable>
     <#if variable.childVariableList?size gt 0>
 void *variable_relation_of_${variable.id}[${variable.type.variableType.count}] = {

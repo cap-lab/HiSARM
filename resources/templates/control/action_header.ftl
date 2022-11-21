@@ -30,13 +30,15 @@ typedef struct _ACTION_TASK {
     PORT *input_port_list;
     semo_int32 output_list_size;
     PORT *output_port_list;
-    PORT *groupPort;
+    PORT *group_port;
 } ACTION_TASK;
 
 extern ACTION_TASK action_task_list[${actionTaskList?size}];
 
+void action_init();
 ACTION_TASK* get_action_task(semo_int32 list_size, ACTION_TASK_ID *candidiate_task_list);
 void action_task_state_polling();
 void stop_action_task(semo_int32 action_id);
+void run_action_task(semo_int32 action_id);
 
 #endif

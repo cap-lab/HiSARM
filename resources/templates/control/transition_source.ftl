@@ -1,14 +1,30 @@
 #include "${robotId}_transition.h"
 #include "${robotId}_event.h"
+#include "semo_logger.h"
+
+// DEFINE VARIABLE MAP LIST
+<#list transitionList as transition>
+    <#list transition.getTransitionElementList() as transitionElement>
+        <#if transition.getArgumentMap(transitionElement)?size gt 0>
+VARIABLE_MAP variable_map_of_${transition.transitionId}_<#if transitionElement.srcMode?has_content>${transitionElement.srcMode.modeId}_${transitionElement.event}<#else>default_mode</#if>_${transitionElement.dstMode.modeId}[${transition.getArgumentMap(transitionElement)?size}] = {
+            <#list transition.getArgumentMap(transitionElement) as argument, parameter>
+    {&variable_${argument.id}, &variable_${parameter.id}},
+            </#list>
+};
+        </#if>
+    </#list>
+</#list>
 
 // DEFINE EVENT MODE MAP
 <#list transitionList as transition>
-    <#list transition.modeList as mode>
-EVENT_MODE_MAP ${transition.transitionId}_${mode.modeId}_event_mode_map[${transition.getTransitionMapOfMode(mode)?size}] = {
-        <#list transition.getTransitionMapOfMode(mode) as event, mode>
-    {ID_EVENT_${event}, ${transition.getModeIndex(mode)}, ID_MODE_${mode.modeId}},
-        </#list>
+    <#list transition.modeList as srcMode>
+        <#if transition.getTransitionElementList(srcMode)?size gt 0>
+EVENT_MODE_MAP event_mode_map_of_${transition.transitionId}_${srcMode.modeId}[${transition.getTransitionElementList(srcMode)?size}] = {
+            <#list transition.getTransitionElementList(srcMode) as transitionElement>
+    {ID_EVENT_${transitionElement.event}, ${transition.getModeIndex(transitionElement.dstMode)}, ${transition.getArgumentMap(transitionElement)?size}, <#if transition.getArgumentMap(transitionElement)?size gt 0>variable_map_of_${transition.transitionId}_<#if testElement.srcMode?has_content>${testElement.srcMode.modeId}_${transitionElement.event}<#else>default_mode</#if>_${transitionElement.dstMode.modeId}<#else>NULL</#if>, ID_MODE_${transitionElement.dstMode.modeId}},
+            </#list>
 };
+        </#if>
     </#list>
 </#list>
 
@@ -16,7 +32,7 @@ EVENT_MODE_MAP ${transition.transitionId}_${mode.modeId}_event_mode_map[${transi
 <#list transitionList as transition>
 MODE_EVENT_MAP ${transition.transitionId}_mode_event_map[${transition.modeList?size}] = {
     <#list transition.modeList as mode>
-    {ID_MODE_${mode.modeId}, ${transition.getTransitionMapOfMode(mode)?size}, ${transition.transitionId}_${mode.modeId}_event_mode_map},
+    {ID_MODE_${mode.modeId}, ${transition.getTransitionElementList(mode)?size}, <#if transition.getTransitionElementList(mode)?size gt 0>event_mode_map_of_${transition.transitionId}_${mode.modeId}<#else>NULL</#if>},
     </#list>
 };
 </#list>
@@ -31,6 +47,8 @@ TRANSITION transition_list[${transitionList?size}] = {
 static struct _EVENT_EXPLORE_RESULT {
     semo_int32 next_mode;
     semo_int32 previous_mode;
+    semo_int32 variable_map_list_size;
+    VARIABLE_MAP *variable_map_list;
     semo_int32 transition_depth;
     semo_int32 event_priority;
 } EVENT_EXPLORE_RESULT;
@@ -41,6 +59,20 @@ static void init_explore_result()
     EVENT_EXPLORE_RESULT.next_mode = -1;
     EVENT_EXPLORE_RESULT.transition_depth = ${transitionList?size};
     EVENT_EXPLORE_RESULT.event_priority = ${eventList?size};
+}
+
+void run_transition(TRANSITION_ID transition_id)
+{
+    SEMO_LOG_INFO("run transition %d", transition_id);
+    transition_list[transition_id].state = SEMO_RUN;
+    transition_list[transition_id].mode_point = 0;
+    run_mode(transition_list[transition_id].mode_list[0].mode_id);
+}
+
+void stop_transition(TRANSITION_ID transition_id)
+{
+    SEMO_LOG_INFO("stop transition %d", transition_id);
+    transition_list[transition_id].state = SEMO_STOP;
 }
 
 static void explore_transition(TRANSITION_ID transition_id, semo_int32 event) 
@@ -59,6 +91,8 @@ static void explore_transition(TRANSITION_ID transition_id, semo_int32 event)
                 EVENT_EXPLORE_RESULT.previous_mode = mode_map_list[previous_mode_point].mode_id;
                 transition_list[i].mode_point = event_map_list[i].next_mode_point;
                 EVENT_EXPLORE_RESULT.next_mode = event_map_list[i].next_mode;
+                EVENT_EXPLORE_RESULT.variable_map_list_size = event_map_list[i].variable_map_list_size;
+                EVENT_EXPLORE_RESULT.variable_map_list = event_map_list[i].variable_map_list;
                 EVENT_EXPLORE_RESULT.transition_depth = transition_depth;
                 EVENT_EXPLORE_RESULT.event_priority = i;
                 return;
@@ -93,7 +127,7 @@ static void stop_previous_mode()
                     stop_mode(mode_map_list[j].mode_id);
                 }
             }
-            transition_list[i].state = SEMO_STOP;
+            stop_transition(i);
         }
     }
 }
@@ -101,6 +135,10 @@ static void stop_previous_mode()
 static void deal_with_result()
 {
     stop_previous_mode();
+    for (int i = 0 ; i < EVENT_EXPLORE_RESULT.variable_map_list_size ; i++)
+    {
+        copy_variable(EVENT_EXPLORE_RESULT.variable_map_list[i].src, EVENT_EXPLORE_RESULT.variable_map_list[i].dst);
+    }
     run_mode(EVENT_EXPLORE_RESULT.next_mode);
 }
 
@@ -123,23 +161,17 @@ void manage_event()
     }
 }
 
-void run_transition(TRANSITION_ID transition_id)
-{
-    transition_list[transition_id].state = SEMO_RUN;
-    transition_list[transition_id].mode_point = 0;
-    run_mode(transition_list[transition_id].mode_list[0].mode_id);
-}
+
 
 void check_group_allocation_and_run_transition()
 {
     for(int i = 0 ; i < group_num ; i++)
     {
-        GROUP_ID group_id = group_list[i];
-        if (group_state_list[i] == TRUE)
+        if (get_group_state(group_list[i]) == TRUE)
         {
             for (int transition_count = 0 ; transition_count < ${transitionList?size} ; transition_count++)
             {
-                if (transition_list[transition_count].group_id == group_id
+                if (transition_list[transition_count].group_id == group_list[i]
                     && transition_list[transition_count].state == SEMO_STOP)
                 {
                     run_transition(transition_count);

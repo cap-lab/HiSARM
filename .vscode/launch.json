@@ -3,11 +3,20 @@
     "configurations": [
         
         {
-            "name": "(BDL) 초소형SW 프레임워크 실행",
+            "name": "초소형SW 프레임워크 실행",
             "type": "python",
             "request": "launch",
             "program": "bdl_runner.py",
             "args": ["${fileBasenameNoExtension}.yaml","${fileBasenameNoExtension}.bdl"],
+            "cwd": "${workspaceFolder}",
+            "environment": []
+            ]
+        },
+        {
+            "name": "초소형SW 로봇 실행",
+            "type": "python",
+            "request": "launch",
+            "program": "robotsw_executer.py",
             "cwd": "${workspaceFolder}",
             "environment": []
             ]

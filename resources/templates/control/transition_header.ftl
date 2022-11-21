@@ -15,6 +15,8 @@ typedef enum _TRANSITION_ID {
 typedef struct _EVENT_MODE_MAP {
     EVENT_ID eventId;
     semo_int32 next_mode_point;
+    semo_int32 variable_map_list_size;
+    VARIABLE_MAP *variable_map_list;
     MODE_ID next_mode;
 } EVENT_MODE_MAP;
 

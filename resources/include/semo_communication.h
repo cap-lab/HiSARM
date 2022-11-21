@@ -3,7 +3,7 @@
 
 #include "semo_common.h"
 
-int channelPortRead(int portId, void *buffer, semo_int32 bufferSize, semo_int8 isBuffer);
-int channelPortWrite(int portId, void *buffer, semo_int32 bufferSize, semo_int8 isBuffer);
+int channel_port_read(int port_id, void *buffer, semo_int32 buffer_size, semo_int8 is_buffer);
+int channel_port_write(int port_id, void *buffer, semo_int32 buffer_size, semo_int8 is_buffer);
 
 #endif

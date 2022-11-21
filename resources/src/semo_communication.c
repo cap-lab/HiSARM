@@ -1,43 +1,47 @@
 #include "semo_communication.h"
 #include "UFPort.h"
 
-int channelPortRead(int portId, void *buffer, semo_int32 bufferSize, semo_int8 isBuffer)
+int channel_port_read(int port_id, void *buffer, semo_int32 buffer_size, semo_int8 is_buffer)
 {
-	int dataNum = 0;
-	int receivedLength = 0;
-	UFPort_GetNumOfAvailableData(portId, 0, &dataNum);
-	if (dataNum >= bufferSize)
+	int data_num = 0;
+	int received_length = 0;
+	uem_result result = UFPort_GetNumOfAvailableData(port_id, 0, &data_num);
+	ERRIFGOTO(result, _EXIT);
+
+	if (data_num >= buffer_size)
 	{
-		if (isBuffer == TRUE)
+		if (is_buffer == TRUE)
 		{
-			UFPort_ReadFromBuffer(portId, (unsigned char *)buffer, bufferSize, 0, &receivedLength);
+			UFPort_ReadFromBuffer(port_id, (unsigned char *)buffer, buffer_size, 0, &received_length);
 		}
 		else
 		{
-			UFPort_ReadFromQueue(portId, (unsigned char *)buffer, bufferSize, 0, &receivedLength);
+			UFPort_ReadFromQueue(port_id, (unsigned char *)buffer, buffer_size, 0, &received_length);
 		}
 	}
-
-	return receivedLength;
+_EXIT:
+	return received_length;
 }
 
-int channelPortWrite(int portId, void *buffer, semo_int32 bufferSize, semo_int8 isBuffer)
+int channel_port_write(int port_id, void *buffer, semo_int32 buffer_size, semo_int8 is_buffer)
 {
-	int dataNum = 0;
-	int channelSize = 0;
-	int sentLength = 0;
-	UFPort_GetNumOfAvailableData(portId, 0, &dataNum);
-	channelSize = UFPort_GetChannelSize(portId);
-	if (channelSize - dataNum >= bufferSize)
+	int data_num = 0;
+	int channel_size = 0;
+	int sent_length = 0;
+	uem_result result = UFPort_GetNumOfAvailableData(port_id, 0, &data_num);
+	ERRIFGOTO(result, _EXIT);
+	channel_size = UFPort_GetChannelSize(port_id);
+	if (channel_size - data_num >= buffer_size)
 	{
-		if (isBuffer == TRUE)
+		if (is_buffer == TRUE)
 		{
-			UFPort_WriteToBuffer(portId, (unsigned char *)buffer, bufferSize, 0, &sentLength);
+			UFPort_WriteToBuffer(port_id, (unsigned char *)buffer, buffer_size, 0, &sent_length);
 		}
 		else
 		{
-			UFPort_WriteToQueue(portId, (unsigned char *)buffer, bufferSize, 0, &sentLength);
+			UFPort_WriteToQueue(port_id, (unsigned char *)buffer, buffer_size, 0, &sent_length);
 		}
 	}
-	return sentLength;
+_EXIT:
+	return sent_length;
 }

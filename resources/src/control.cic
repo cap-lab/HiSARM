@@ -1,5 +1,7 @@
 TASK_CODE_BEGIN
 
+semo_int32 CONTROL_TASK_ID = THIS_TASK_ID;
+
 TASK_INIT
 {
 	SEMO_LOG_INFO("INIT");
@@ -7,6 +9,7 @@ TASK_INIT
 	service_init();
 	event_list_init();
 	group_init();
+	action_init();
 }
 
 TASK_GO

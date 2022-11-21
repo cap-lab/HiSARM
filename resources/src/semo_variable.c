@@ -28,3 +28,14 @@ semo_int8 compare_variable(VARIABLE *var1, VARIABLE *var2)
         return FALSE;
     }
 }
+
+void copy_variable(VARIABLE *src, VARIABLE *dst)
+{
+    if (src->size != dst->size)
+    {
+        return;
+    }
+    fill_buffer_from_elements(src);
+    memcpy(dst->buffer, src->buffer, src->size);
+    fill_elements_from_buffer(dst);
+}
