@@ -8,6 +8,7 @@ typedef enum _EVENT_ID {
 <#list eventList as event>
     ID_EVENT_${event},
 </#list>
+    ID_EVENT_LAST
 } EVENT_ID;
 
 extern semo_int8 event_list[${eventList?size}];

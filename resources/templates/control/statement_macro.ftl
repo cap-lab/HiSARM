@@ -49,7 +49,7 @@
                 stop_action_task(action->action_task_id);
                 for (int port_index = 0 ; port_index < action->output_list_size ; port_index++)
                 {
-                    UFPort_ReadFromBuffer(action->output_port_list[port_index].port_id, (unsigned char*) action->output_port_list[port_index].variable->buffer, action->output_port_list[port_index].variable->size, 0, &dataLen);
+                    UFPort_ReadFromQueue(action->output_port_list[port_index].port_id, (unsigned char*) action->output_port_list[port_index].variable->buffer, action->output_port_list[port_index].variable->size, 0, &dataLen);
                     fill_elements_from_buffer(action->output_port_list[port_index].variable);
                 }
             }
