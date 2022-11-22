@@ -56,6 +56,26 @@ STATIC MULTICAST_PACKET packet_${libPort.library.name} = {&${libPort.library.nam
 </#list>
 
 </#if>
+<#if leaderPortMap?size gt 0>
+// LEADER VARIABLE DEFINE
+<#list leaderPortMap as robotIdPort, heartbeatPort>
+#pragma pack(push, 1)
+STATIC struct _${robotIdPort.getVariableName()} {
+    MULTICAST_PACKET_HEADER header;
+    semo_int32 body[1];
+} ${robotIdPort.getVariableName()} = {{-1, THIS_ROBOT_ID}, {0}};
+#pragma pack(pop)
+STATIC MULTICAST_PACKET packet_${robotIdPort.getVariableName()} = {&${robotIdPort.getVariableName()}.header, ${robotIdPort.getVariableName()}.body};
+#pragma pack(push, 1)
+STATIC struct _${heartbeatPort.getVariableName()} {
+    MULTICAST_PACKET_HEADER header;
+    semo_int32 body[1];
+} ${heartbeatPort.getVariableName()} = {{-1, THIS_ROBOT_ID}, {0}};
+#pragma pack(pop)
+STATIC MULTICAST_PACKET packet_${heartbeatPort.getVariableName()} = {&${heartbeatPort.getVariableName()}.header, ${heartbeatPort.getVariableName()}.body};
+</#list>
+
+</#if>
 <#if channelPortMap?size gt 0>
 // CHANNEL_PORT_SECTION
 STATIC CHANNEL_PORT channel_port_list[${channelPortMap?size}] = {
@@ -86,8 +106,8 @@ STATIC SHARED_DATA_PORT shared_data_port_list[${sharedDataPortMap?size}] = {
 // LEADER PORT SECTION
 STATIC LEADER_PORT leader_port_list[${leaderPortMap?size}] = {
     <#list leaderPortMap as robotIdPort, heartbeatPort>
-    {"${robotIdPort.name}", -1, -1, {{-1, THIS_ROBOT_ID}, -1}, -1, l_${robotId}leader_avail_robot_id_report, l_${robotId}leader_get_robot_id_report, NULL,
-    "${heartbeatPort.name}", -1, -1, {{-1, THIS_ROBOT_ID}, -1}, -1, l_${robotId}leader_avail_heartbeat_report, l_${robotId}leader_get_heartbeat_report, NULL, ID_GROUP_${robotIdPort.message}},
+    {"${robotIdPort.name}", -1, -1, &${robotIdPort.getVariableName()}, &packet_${robotIdPort.getVariableName()}, -1, l_${robotId}leader_avail_robot_id_report, l_${robotId}leader_get_robot_id_report, NULL,
+    "${heartbeatPort.name}", -1, -1, &${heartbeatPort.getVariableName()}, &packet_${heartbeatPort.getVariableName()}, -1, l_${robotId}leader_avail_heartbeat_report, l_${robotId}leader_get_heartbeat_report, NULL, ID_GROUP_${robotIdPort.message}, 16},
     </#list>
 };
 
@@ -205,16 +225,16 @@ STATIC void leader_port_send() {
         if (leader_port_list[i].robot_id_avail_func(leader_port_list[i].group_id) == TRUE) 
         {
             int data_len;
-            leader_port_list[i].robot_id_buffer.body = leader_port_list[i].robot_id_get_func(leader_port_list[i].group_id);
-            UFTimer_GetCurrentTime(THIS_TASK_ID, &(leader_port_list[i].robot_id_buffer.header.time));
-            UFMulticastPort_WriteToBuffer(leader_port_list[i].robot_id_group_id, leader_port_list[i].robot_id_port_id, (unsigned char * ) &(leader_port_list[i].robot_id_buffer), sizeof(LEADER_PACKET), &data_len);
+            *(int*)leader_port_list[i].robot_id_packet->data = leader_port_list[i].robot_id_get_func(leader_port_list[i].group_id);
+            UFTimer_GetCurrentTime(THIS_TASK_ID, &(leader_port_list[i].robot_id_packet->header->time));
+            UFMulticastPort_WriteToBuffer(leader_port_list[i].robot_id_group_id, leader_port_list[i].robot_id_port_id, (unsigned char * ) leader_port_list[i].robot_id_buffer, leader_port_list[i].size, &data_len);
         }
         if (leader_port_list[i].heartbeat_avail_func(leader_port_list[i].group_id) == TRUE) 
         {
             int data_len;
-            leader_port_list[i].heartbeat_buffer.body = leader_port_list[i].heartbeat_get_func(leader_port_list[i].group_id);
-            UFTimer_GetCurrentTime(THIS_TASK_ID, &(leader_port_list[i].heartbeat_buffer.header.time));
-            UFMulticastPort_WriteToBuffer(leader_port_list[i].heartbeat_group_id, leader_port_list[i].heartbeat_port_id, (unsigned char * ) &(leader_port_list[i].heartbeat_buffer), sizeof(LEADER_PACKET), &data_len);
+            *(int*)leader_port_list[i].heartbeat_packet->data = leader_port_list[i].heartbeat_get_func(leader_port_list[i].group_id);
+            UFTimer_GetCurrentTime(THIS_TASK_ID, &(leader_port_list[i].heartbeat_packet->header->time));
+            UFMulticastPort_WriteToBuffer(leader_port_list[i].heartbeat_group_id, leader_port_list[i].heartbeat_port_id, (unsigned char * ) leader_port_list[i].heartbeat_buffer, leader_port_list[i].size, &data_len);
         }
     }
 }

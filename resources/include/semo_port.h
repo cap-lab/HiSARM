@@ -75,17 +75,13 @@ typedef struct _SHARED_DATA_PORT
 typedef semo_int8 LEADER_AVAIL_FUNC(semo_int32 group_id);
 typedef semo_int32 LEADER_GET_FUNC(semo_int32 group_id);
 typedef void LEADER_SET_FUNC(semo_int32 group_id, semo_int32 robot_id);
-typedef struct _LEADER_PACKET
-{
-    MULTICAST_PACKET_HEADER header;
-    semo_int32 body;
-} LEADER_PACKET;
 typedef struct _LEADER_PORT
 {
     char *robot_id_port_name;
     int robot_id_group_id;
     int robot_id_port_id;
-    LEADER_PACKET robot_id_buffer;
+    void *robot_id_buffer;
+    MULTICAST_PACKET *robot_id_packet;
     semo_int64 robot_id_before_time;
     LEADER_AVAIL_FUNC *robot_id_avail_func;
     LEADER_GET_FUNC *robot_id_get_func;
@@ -94,12 +90,14 @@ typedef struct _LEADER_PORT
     char *heartbeat_port_name;
     int heartbeat_group_id;
     int heartbeat_port_id;
-    LEADER_PACKET heartbeat_buffer;
+    void *heartbeat_buffer;
+    MULTICAST_PACKET *heartbeat_packet;
     semo_int64 heartbeat_before_time;
     LEADER_AVAIL_FUNC *heartbeat_avail_func;
     LEADER_GET_FUNC *heartbeat_get_func;
     LEADER_SET_FUNC *heartbeat_set_func;
 
     semo_int32 group_id;
+    semo_int32 size;
 } LEADER_PORT;
 #endif

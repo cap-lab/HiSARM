@@ -88,31 +88,37 @@
 </#macro>
 
 <#macro IF statement service>
-            VARIABLE *leftVariable = &variable_${statement.condition.leftVariable};
-            VARIABLE *rightVariable = &variable_${statement.condition.rightVariable};
+            <#if statement.condition.leftVariable?has_content>
+            VARIABLE *leftVariable = &variable_${statement.condition.leftVariable.id};
+            VARIABLE *rightVariable = &variable_${statement.condition.rightVariable.id};
             fill_buffer_from_elements(leftVariable);
             fill_buffer_from_elements(rightVariable);
 	        if (compare_variable(leftVariable, rightVariable) == TRUE)
 	        {
-	        <#if statement.period?exists>
+            </#if>
+	        <#if statement.condition.period?has_content>
 	        	TIMER *timer = get_timer(ID_SERVICE_${service.serviceId}, ID_STATEMENT_${statement.statementId});
 	            if(timer == NULL || timer_check(timer) == TRUE) 
                 {
                     remove_timer(timer);
-                    new_timer(${action.period.timeValue}, TIMER_UNIT_${action.period.timeUnit}, ID_SERVICE_${service.serviceId}, ID_STATEMENT_${statement.statementId});
+                    new_timer(${statement.condition.period.getConvertedTime()}, "${statement.condition.period.getConvertedTimeUnit().getValue()}", ID_SERVICE_${service.serviceId}, ID_STATEMENT_${statement.statementId});
                     <@TRANSITION statement "TRUE" service 2/>
                 }
             <#else>
                 <@TRANSITION statement "TRUE" service 1/>
             </#if>
+            <#if statement.condition.leftVariable?has_content>
             }
             else
             {
+            </#if>
             <#if statement.period?exists>
                 remove_timer(get_timer(timerList, timerNum, service_list[ID_SERVICE_${service.name}]));
             </#if>
+            <#if statement.condition.leftVariable?has_content>
                 <@TRANSITION statement "FALSE" service 1/>
             }
+            </#if>
 </#macro>
 
 <#macro THROW statement service>

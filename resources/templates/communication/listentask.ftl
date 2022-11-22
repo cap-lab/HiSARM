@@ -56,6 +56,26 @@ STATIC MULTICAST_PACKET packet_${libPort.library.name} = {&${libPort.library.nam
 </#list>
 
 </#if>
+<#if leaderPortMap?size gt 0>
+// LEADER VARIABLE DEFINE
+<#list leaderPortMap as robotIdPort, heartbeatPort>
+#pragma pack(push, 1)
+STATIC struct _${robotIdPort.getVariableName()} {
+    MULTICAST_PACKET_HEADER header;
+    semo_int32 body[1];
+} ${robotIdPort.getVariableName()} = {{-1, -1}, {0}};
+#pragma pack(pop)
+STATIC MULTICAST_PACKET packet_${robotIdPort.getVariableName()} = {&${robotIdPort.getVariableName()}.header, ${robotIdPort.getVariableName()}.body};
+#pragma pack(push, 1)
+STATIC struct _${heartbeatPort.getVariableName()} {
+    MULTICAST_PACKET_HEADER header;
+    semo_int32 body[1];
+} ${heartbeatPort.getVariableName()} = {{-1, -1}, {0}};
+#pragma pack(pop)
+STATIC MULTICAST_PACKET packet_${heartbeatPort.getVariableName()} = {&${heartbeatPort.getVariableName()}.header, ${heartbeatPort.getVariableName()}.body};
+</#list>
+
+</#if>
 <#if channelPortMap?size gt 0>
 // CHANNEL PORT SECTION
 STATIC CHANNEL_PORT channel_port_list[${channelPortMap?size}] = {
@@ -86,8 +106,8 @@ STATIC SHARED_DATA_PORT shared_data_port_list[${sharedDataPortMap?size}] = {
 // LEADER PORT SECTION
 STATIC LEADER_PORT leader_port_list[${leaderPortMap?size}] = {
 <#list leaderPortMap as robotIdPort, heartbeatPort>
-    {"${robotIdPort.name}", -1, -1, {{-1, -1}, -1}, -1, NULL, NULL, l_${robotId}leader_set_robot_id_listen, 
-    "${heartbeatPort.name}", -1, -1, {{-1, -1}, -1}, -1, NULL, NULL, l_${robotId}leader_set_heartbeat_listen, ID_GROUP_${robotIdPort.message}},
+    {"${robotIdPort.name}", -1, -1, &${robotIdPort.getVariableName()}, &packet_${robotIdPort.getVariableName()}, -1, NULL, NULL, l_${robotId}leader_set_robot_id_listen, 
+    "${heartbeatPort.name}", -1, -1, &${heartbeatPort.getVariableName()}, &packet_${heartbeatPort.getVariableName()}, -1, NULL, NULL, l_${robotId}leader_set_heartbeat_listen, ID_GROUP_${robotIdPort.message}, 16},
 </#list>
 };
 
@@ -213,24 +233,24 @@ STATIC void leader_port_receive() {
     int data_len;
     for (int i = 0 ; i < sizeof(leader_port_list)/sizeof(LEADER_PORT) ; i++)
     {
-        UFMulticastPort_ReadFromBuffer(leader_port_list[i].robot_id_group_id, leader_port_list[i].robot_id_port_id, (unsigned char*) &(leader_port_list[i].robot_id_buffer), sizeof(LEADER_PACKET), &data_len);
+        UFMulticastPort_ReadFromBuffer(leader_port_list[i].robot_id_group_id, leader_port_list[i].robot_id_port_id, (unsigned char*) leader_port_list[i].robot_id_buffer, leader_port_list[i].size, &data_len);
         if (data_len > 0) 
         {
-	         if (leader_port_list[i].robot_id_before_time < leader_port_list[i].robot_id_buffer.header.time
-                 && leader_port_list[i].robot_id_buffer.header.sender_robot_id != THIS_ROBOT_ID) 
+	         if (leader_port_list[i].robot_id_before_time < leader_port_list[i].robot_id_packet->header->time
+                 && leader_port_list[i].robot_id_packet->header->sender_robot_id != THIS_ROBOT_ID) 
              {
-        		    leader_port_list[i].robot_id_set_func(leader_port_list[i].group_id, leader_port_list[i].robot_id_buffer.body);
-        		    leader_port_list[i].robot_id_before_time = leader_port_list[i].robot_id_buffer.header.time;
+        		    leader_port_list[i].robot_id_set_func(leader_port_list[i].group_id, leader_port_list[i].robot_id_packet->data);
+        		    leader_port_list[i].robot_id_before_time = leader_port_list[i].robot_id_packet->header->time;
              }
         }
-        UFMulticastPort_ReadFromBuffer(leader_port_list[i].heartbeat_group_id, leader_port_list[i].heartbeat_port_id, (unsigned char*) &(leader_port_list[i].heartbeat_buffer), sizeof(LEADER_PACKET), &data_len);
+        UFMulticastPort_ReadFromBuffer(leader_port_list[i].heartbeat_group_id, leader_port_list[i].heartbeat_port_id, (unsigned char*) leader_port_list[i].heartbeat_buffer, leader_port_list[i].size, &data_len);
         if (data_len > 0) 
         {
-	         if (leader_port_list[i].heartbeat_before_time < leader_port_list[i].heartbeat_buffer.header.time
-                 && leader_port_list[i].heartbeat_buffer.header.sender_robot_id != THIS_ROBOT_ID) 
+	         if (leader_port_list[i].heartbeat_before_time < leader_port_list[i].heartbeat_packet->header->time
+                 && leader_port_list[i].heartbeat_packet->header->sender_robot_id != THIS_ROBOT_ID) 
              {
-        		    leader_port_list[i].heartbeat_set_func(leader_port_list[i].group_id, leader_port_list[i].heartbeat_buffer.body);
-        		    leader_port_list[i].heartbeat_before_time = leader_port_list[i].heartbeat_buffer.header.time;
+        		    leader_port_list[i].heartbeat_set_func(leader_port_list[i].group_id, leader_port_list[i].heartbeat_packet->data);
+        		    leader_port_list[i].heartbeat_before_time = leader_port_list[i].heartbeat_packet->header->time;
              }
         }
     }
