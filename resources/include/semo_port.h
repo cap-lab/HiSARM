@@ -29,13 +29,13 @@ typedef struct _CHANNEL_PORT
     semo_int32 size;
     semo_int8 refreshed;
 } CHANNEL_PORT;
-
+#pragma pack(push, 1)
 typedef struct _MULTICAST_PACKET_HEADER
 {
     semo_int64 time;
     semo_int32 sender_robot_id;
 } MULTICAST_PACKET_HEADER;
-
+#pragma pack(pop)
 typedef struct _MULTICAST_PACKET
 {
     MULTICAST_PACKET_HEADER *header;

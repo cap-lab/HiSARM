@@ -4,7 +4,6 @@
 
 // ##DEFINE_SECTION::START
 #include "UFTimer.h"
-#pragma pack(push, 1)
 // ##DEFINE_SECTION::END
 
 TASK_CODE_BEGIN
@@ -26,6 +25,7 @@ STATIC ${inPort.variableType.variableType.type.getValue()} ${inPort.getVariableN
 <#if multicastPortMap?size gt 0>
 // MULTICAST VARIABLE DEFINE
 <#list multicastPortMap as channelPort, multicastPort>
+#pragma pack(push, 1)
 STATIC struct _${multicastPort.getVariableName()} {
     MULTICAST_PACKET_HEADER header;
     <#if multicastPort.variableType.variableType.type.getValue() == "enum">
@@ -34,6 +34,7 @@ STATIC struct _${multicastPort.getVariableName()} {
     ${multicastPort.variableType.variableType.type.getValue()} body[${multicastPort.variableType.variableType.count}];
     </#if>
 } ${multicastPort.getVariableName()} = {{-1, -1}, {0,}};
+#pragma pack(pop)
 STATIC MULTICAST_PACKET packet_${multicastPort.getVariableName()} = {&${multicastPort.getVariableName()}.header, ${multicastPort.getVariableName()}.body};
 </#list>
 
@@ -41,6 +42,7 @@ STATIC MULTICAST_PACKET packet_${multicastPort.getVariableName()} = {&${multicas
 <#if sharedDataPortMap?size gt 0>
 // SHARED DATA VARIABLE DEFINE
 <#list sharedDataPortMap as libPort, multicastPort>
+#pragma pack(push, 1)
 STATIC struct _${libPort.library.name} {
     MULTICAST_PACKET_HEADER header;
     <#if libPort.library.variableType.variableType.type.getValue() == "enum">
@@ -49,6 +51,7 @@ STATIC struct _${libPort.library.name} {
     ${libPort.variableType.variableType.type.getValue()} body[${libPort.variableType.variableType.count}];
     </#if>
 } ${libPort.library.name} = {{-1, -1}, {0,}};
+#pragma pack(pop)
 STATIC MULTICAST_PACKET packet_${libPort.library.name} = {&${libPort.library.name}.header, ${libPort.library.name}.body};
 </#list>
 
