@@ -25,11 +25,18 @@ extern semo_int32 comm_port_of_${commStatement.statementId}_size;
 extern COMM_PORT throw_out_port_of_${throwStatement.statementId};
 </#list>
 
-COMM_PORT* get_team_port(COMM_PORT* port_list, semo_int32 port_list_size, semo_int32 team_id);
-extern COMM_PORT throw_in_port_list[${throwStatementList?size}];
+<#assign thInPortList = []>
+<#list throwStatementList as throwStatement>
+    <#if thInPortList?seq_contains(throwStatement.th.inPort.port.name)>
+    <#else>
+    <#assign thInPortList = thInPortList + [throwStatement.th.inPort.port.name]>
+    </#if>
+</#list>
+extern COMM_PORT throw_in_port_list[${thInPortList?size}];
 extern semo_int32 throw_in_port_list_size;
 
 extern PORT port_of_leader;
 
 void port_init();
+COMM_PORT* get_team_port(COMM_PORT* port_list, semo_int32 port_list_size, semo_int32 team_id);
 #endif

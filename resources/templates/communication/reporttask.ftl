@@ -84,7 +84,7 @@ STATIC SHARED_DATA_PORT shared_data_port_list[${sharedDataPortMap?size}] = {
 STATIC LEADER_PORT leader_port_list[${leaderPortMap?size}] = {
     <#list leaderPortMap as robotIdPort, heartbeatPort>
     {"${robotIdPort.name}", -1, -1, {{-1, THIS_ROBOT_ID}, -1}, -1, l_${robotId}leader_avail_robot_id_report, l_${robotId}leader_get_robot_id_report, NULL,
-    "${heartbeatPort.name}", -1, -1, {{-1, THIS_ROBOT_ID}, -1}, -1, l_${robotId}leader_avail_heartbeat_report, l_${robotId}leader_get_heartbeat_report, NULL, ID_GROUP_${robotIdPort.group}},
+    "${heartbeatPort.name}", -1, -1, {{-1, THIS_ROBOT_ID}, -1}, -1, l_${robotId}leader_avail_heartbeat_report, l_${robotId}leader_get_heartbeat_report, NULL, ID_GROUP_${robotIdPort.message}},
     </#list>
 };
 

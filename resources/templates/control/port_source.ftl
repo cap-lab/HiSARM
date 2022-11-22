@@ -45,12 +45,19 @@ semo_int32 comm_port_of_${commStatement.statementId}_size = ${commStatement.comm
 COMM_PORT throw_out_port_of_${throwStatement.statementId} = {&port_of_${throwStatement.th.outPort.port.name}, NULL, 0};
 </#list>
 
-COMM_PORT throw_in_port_list[${throwStatementList?size}] = {
-    <#list throwStatementList as throwStatement>
-    {&port_of_${throwStatement.th.inPort.port.name}, NULL, 0},
-    </#list>
+<#assign thInPortList = []>
+<#list throwStatementList as throwStatement>
+    <#if thInPortList?seq_contains(throwStatement.th.inPort.port.name)>
+    <#else>
+    <#assign thInPortList = thInPortList + [throwStatement.th.inPort.port.name]>
+    </#if>
+</#list>
+COMM_PORT throw_in_port_list[${thInPortList?size}] = {
+<#list thInPortList as thInPort>
+{&port_of_${thInPort}, NULL, 0},
+</#list>
 };
-semo_int32 throw_in_port_list_size = ${throwStatementList?size};
+semo_int32 throw_in_port_list_size = ${thInPortList?size};
 
 PORT port_of_leader = {"${leaderPort.name}", -1, &variable_leader};
 

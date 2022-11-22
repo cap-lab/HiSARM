@@ -84,7 +84,7 @@ STATIC SHARED_DATA_PORT shared_data_port_list[${sharedDataPortMap?size}] = {
 STATIC LEADER_PORT leader_port_list[${leaderPortMap?size}] = {
 <#list leaderPortMap as robotIdPort, heartbeatPort>
     {"${robotIdPort.name}", -1, -1, {{-1, -1}, -1}, -1, NULL, NULL, l_${robotId}leader_set_robot_id_listen, 
-    "${heartbeatPort.name}", -1, -1, {{-1, -1}, -1}, -1, NULL, NULL, l_${robotId}leader_set_heartbeat_listen, ID_GROUP_${robotIdPort.group}},
+    "${heartbeatPort.name}", -1, -1, {{-1, -1}, -1}, -1, NULL, NULL, l_${robotId}leader_set_heartbeat_listen, ID_GROUP_${robotIdPort.message}},
 </#list>
 };
 
@@ -177,7 +177,7 @@ STATIC void multicast_port_receive() {
             if (multicast_port_list[i].before_time < multicast_port_list[i].packet->header->time
                  && multicast_port_list[i].packet->header->sender_robot_id != THIS_ROBOT_ID) 
             {
-                if (channel_port_write(multicast_port_list[i].channel_port_id, &multicast_port_list[i].packet->data, multicast_port_list[i].size, FALSE) > 0) 
+                if (channel_port_write(multicast_port_list[i].channel_port_id, multicast_port_list[i].packet->data, multicast_port_list[i].size, FALSE) > 0) 
                 {
                 	    multicast_port_list[i].before_time = multicast_port_list[i].packet->header->time;
                 }

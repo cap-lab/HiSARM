@@ -8,11 +8,11 @@ extern "C"
 
     typedef char semo_int8;
     typedef short semo_int16;
-    typedef long semo_int32;
+    typedef int semo_int32;
     typedef long long semo_int64;
     typedef unsigned char semo_uint8;
     typedef unsigned short semo_uint16;
-    typedef unsigned long semo_uint32;
+    typedef unsigned int semo_uint32;
     typedef unsigned long long semo_uint64;
 
     typedef enum _SEMO_DIRECTION

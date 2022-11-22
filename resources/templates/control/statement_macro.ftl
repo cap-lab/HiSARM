@@ -59,15 +59,15 @@
             int dataLen;
             uem_result result;
             int dataNum = 0;
-            COMM_PORT *port = get_team_port(comm_port_of_${statement.statementId}, comm_port_of_${statement.statementId}_size, *((int*)variable_${statement.comm.team.id}));
+            COMM_PORT *port = get_team_port(comm_port_of_${statement.statementId}, comm_port_of_${statement.statementId}_size, *((int*)variable_${statement.comm.team.id}.buffer));
         	result = UFPort_GetNumOfAvailableData(port->port->port_id, 0, &dataNum);
             ERRIFGOTO(result, _EXIT);
         	if (dataNum >= ${statement.comm.message.type.variableType.size})
         	{
                 UFPort_ReadFromQueue(port->port->port_id, (unsigned char*) port->variable->buffer, port->variable->size, 0, &dataLen);
                 fill_elements_from_buffer(port->variable);
+                <@TRANSITION statement "TRUE" service 1/>
             }
-            <@TRANSITION statement "TRUE" service 0/>
 </#macro>
 
 <#macro SEND statement service>
@@ -83,8 +83,8 @@
             {
                 fill_buffer_from_elements(port->variable);
                 UFPort_WriteToQueue(port->port->port_id, (unsigned char*) port->variable->buffer, port->variable->size, 0, &dataLen);
+                <@TRANSITION statement "TRUE" service 1/>
             }
-            <@TRANSITION statement "TRUE" service 0/>
 </#macro>
 
 <#macro IF statement service>
@@ -120,6 +120,7 @@
             semo_int32 event = ID_EVENT_${statement.statement.statement.event.name};
             event_list[event] = TRUE;
             event_occured = TRUE;
+            SEMO_LOG_INFO("Event %d occured", event);
             <#if statement.statement.statement.isBroadcast() == true>
             UFPort_WriteToQueue(throw_out_port_of_${statement.statementId}.port->port_id, (unsigned char*) &event, sizeof(semo_int32), 0, &dataLen);
             </#if>
