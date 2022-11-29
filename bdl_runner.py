@@ -60,7 +60,7 @@ def buildOSTarget():
     os.environ["PKG_CONFIG_LIBDIR"] = PKG_CONFIG_DIR
     runCommand("chmod +x ./preinstall.sh")
     runCommand("./preinstall.sh")
-    runCommand("./configure CFLAGS=\"--sysroot=" + SYSROOT_DIR + " -O2\"  CXXFLAGS=\"--sysroot=" + SYSROOT_DIR + " -O2\" --host=arm-linux-gnueabihf")
+    runCommand("./configure CFLAGS=\"--sysroot=" + SYSROOT_DIR + " -O2 -g\"  CXXFLAGS=\"--sysroot=" + SYSROOT_DIR + " -O2\" --host=arm-linux-gnueabihf")
     runCommand("make -j")
 
 def buildNonOSTarget():

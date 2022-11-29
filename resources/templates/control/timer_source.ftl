@@ -47,6 +47,16 @@ void remove_timer(TIMER* timer) {
     }
 }
 
+void remove_all_service_timer(semo_int32 service_id) {
+    for (int i = 0 ; i < timerNum ; i++)
+	{
+		if (timerList[i].timer_id != -1 && timerList[i].service_id == service_id)
+		{
+            remove_timer(&(timerList[i]));
+		}
+    }
+}
+
 void remove_all_timer() {
 	for (int i = 0 ; i < timerNum ; i++)
 	{

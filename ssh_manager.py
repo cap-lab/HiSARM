@@ -36,7 +36,7 @@ class SSHManager:
             with SCPClient(self.ssh_client.get_transport()) as scp:
                 scp.put(local_path, remote_path, preserve_times=True)
         except SCPException:
-            raise SCPException.message
+            raise SCPException
 
     def get_file(self, remote_path, local_path):
         """Get a single file from remote path"""

@@ -15,7 +15,7 @@ TASK_CODE_BEGIN
 // CHANNEL VARIABLE DEFINE
 <#list channelPortMap as outPort, inPort>
     <#if outPort.variableType.variableType.type.getValue() == "enum">
-STATIC VARIABLE_${outPort.variableType.variableType.name} ${outPort.getVariableName()}[${outPort.variableType.variableType.count}];
+STATIC VARIABLE_TYPE_${outPort.variableType.variableType.name} ${outPort.getVariableName()}[${outPort.variableType.variableType.count}];
     <#else>
 STATIC ${outPort.variableType.variableType.type.getValue()} ${outPort.getVariableName()}[${outPort.variableType.variableType.count}];
     </#if>
@@ -29,7 +29,7 @@ STATIC ${outPort.variableType.variableType.type.getValue()} ${outPort.getVariabl
 STATIC struct _${multicastPort.getVariableName()} {
     MULTICAST_PACKET_HEADER header;
     <#if multicastPort.variableType.variableType.type.getValue() == "enum">
-    VARIABLE_${multicastPort.variableType.variableType.name} body[${multicastPort.variableType.variableType.count}];
+    VARIABLE_TYPE_${multicastPort.variableType.variableType.name} body[${multicastPort.variableType.variableType.count}];
     <#else>
     ${multicastPort.variableType.variableType.type.getValue()} body[${multicastPort.variableType.variableType.count}];
     </#if>
@@ -46,7 +46,7 @@ STATIC MULTICAST_PACKET packet_${multicastPort.getVariableName()} = {&${multicas
 STATIC struct _${libPort.library.name} {
     MULTICAST_PACKET_HEADER header;
     <#if libPort.library.variableType.variableType.type.getValue() == "enum">
-    VARIABLE_${libPort.variableType.variableType.name} body[${libPort.variableType.variableType.count}];
+    VARIABLE_TYPE_${libPort.variableType.variableType.name} body[${libPort.variableType.variableType.count}];
     <#else>
     ${libPort.variableType.variableType.type.getValue()} body[${libPort.variableType.variableType.count}];
     </#if>
@@ -79,7 +79,7 @@ STATIC MULTICAST_PACKET packet_${heartbeatPort.getVariableName()} = {&${heartbea
 <#if channelPortMap?size gt 0>
 // CHANNEL_PORT_SECTION
 STATIC CHANNEL_PORT channel_port_list[${channelPortMap?size}] = {
-<#list channelPortMap as outPort, inPort>
+<#list channelPortMap as inPort, outPort>
     {"${inPort.name}", -1, "${outPort.name}", -1, ${outPort.getVariableName()}, ${outPort.sampleSize}, FALSE}, 
 </#list>
 };
@@ -179,9 +179,9 @@ STATIC void channel_port_send() {
     	{
     	    channel_port_list[i].refreshed = TRUE;
     	}
-    	if (channel_port_list[i].refreshed = TRUE) 
+    	if (channel_port_list[i].refreshed == TRUE) 
     	{
-    	    if (channelPortWrite(channel_port_list[i].out_port_id, channel_port_list[i].buffer, channel_port_list[i].size, FALSE) > 0) 
+    	    if (channel_port_write(channel_port_list[i].out_port_id, channel_port_list[i].buffer, channel_port_list[i].size, FALSE) > 0) 
     	    {
     	        channel_port_list[i].refreshed = FALSE;
     	    }

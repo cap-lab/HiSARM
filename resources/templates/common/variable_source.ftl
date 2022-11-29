@@ -5,7 +5,7 @@
 // VARIABLE BUFFER DEFINE
 <#list variableList as variable>
     <#if variable.type.variableType.type.getValue() == "enum">
-VARIABLE_TYPE_${variable.type.variableType.name} variable_buffer_of_${variable.id}[${variable.type.variableType.count}]<#if variable.defaultValue?has_content> = {${variable.defaultValue}}</#if>;
+VARIABLE_TYPE_${variable.type.variableType.name} variable_buffer_of_${variable.id}[${variable.type.variableType.count}]<#if variable.defaultValue?has_content> = {SEMO_ENUM_${variable.defaultValue}}</#if>;
     <#else>
 ${variable.type.variableType.type.getValue()} variable_buffer_of_${variable.id}[${variable.type.variableType.count}]<#if variable.defaultValue?has_content> = {${variable.defaultValue}}</#if>;
     </#if>

@@ -42,14 +42,18 @@ semo_int32 comm_port_of_${commStatement.statementId}_size = ${commStatement.comm
 </#list>
 
 <#list throwStatementList as throwStatement>
+    <#if throwStatement.statement.statement.isBroadcast() == true>
 COMM_PORT throw_out_port_of_${throwStatement.statementId} = {&port_of_${throwStatement.th.outPort.port.name}, NULL, 0};
+    </#if>
 </#list>
 
 <#assign thInPortList = []>
 <#list throwStatementList as throwStatement>
-    <#if thInPortList?seq_contains(throwStatement.th.inPort.port.name)>
-    <#else>
-    <#assign thInPortList = thInPortList + [throwStatement.th.inPort.port.name]>
+    <#if throwStatement.statement.statement.isBroadcast() == true>
+        <#if thInPortList?seq_contains(throwStatement.th.inPort.port.name)>
+        <#else>
+        <#assign thInPortList = thInPortList + [throwStatement.th.inPort.port.name]>
+        </#if>
     </#if>
 </#list>
 COMM_PORT throw_in_port_list[${thInPortList?size}] = {

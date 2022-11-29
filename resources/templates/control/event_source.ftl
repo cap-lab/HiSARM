@@ -22,6 +22,7 @@ void event_polling() {
         if (dataNum > 0)
         {
             UFPort_ReadFromQueue(throw_in_port_list[i].port->port_id, (unsigned char*) &event, sizeof(semo_int32), 0, &dataLen);
+            event_occured = TRUE;
             event_list[event] = TRUE;
         }
     }

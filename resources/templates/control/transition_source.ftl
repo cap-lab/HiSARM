@@ -81,15 +81,16 @@ static void explore_transition(TRANSITION_ID transition_id, semo_int32 event)
     semo_int32 previous_mode_point = transition_list[transition_id].mode_point;
     MODE_EVENT_MAP *mode_map_list = transition_list[transition_id].mode_list;
     EVENT_MODE_MAP *event_map_list = mode_map_list[previous_mode_point].event_mode_map;
+    SEMO_LOG_INFO("current mode state %d(point %d)", mode_map_list[previous_mode_point].mode_id, previous_mode_point);
     for (int i = 0 ; i < mode_map_list[previous_mode_point].event_mode_map_size ; i++)
     {
         if (event_map_list[i].eventId == event)
         {
             if ((transition_depth < EVENT_EXPLORE_RESULT.transition_depth) ||
-                (transition_depth == EVENT_EXPLORE_RESULT.transition_depth && i < EVENT_EXPLORE_RESULT.event_priority))
+                (transition_depth == EVENT_EXPLORE_RESULT.transition_depth && i <= EVENT_EXPLORE_RESULT.event_priority))
             {
                 EVENT_EXPLORE_RESULT.previous_mode = mode_map_list[previous_mode_point].mode_id;
-                transition_list[i].mode_point = event_map_list[i].next_mode_point;
+                transition_list[transition_id].mode_point = event_map_list[i].next_mode_point;
                 EVENT_EXPLORE_RESULT.next_mode = event_map_list[i].next_mode;
                 EVENT_EXPLORE_RESULT.variable_map_list_size = event_map_list[i].variable_map_list_size;
                 EVENT_EXPLORE_RESULT.variable_map_list = event_map_list[i].variable_map_list;
@@ -107,7 +108,9 @@ static void explore_to_find_next_mode(semo_int32 event)
     {
         if (transition_list[i].state == SEMO_RUN && transition_list[i].transition_depth <= EVENT_EXPLORE_RESULT.transition_depth)
         {
+            SEMO_LOG_INFO("explore transition %d", transition_list[i].transition_id);
             explore_transition(transition_list[i].transition_id, event);
+            SEMO_LOG_INFO("next mode selected %d(point %d)", EVENT_EXPLORE_RESULT.next_mode, transition_list[i].mode_point);
         }
     }
 }
@@ -150,13 +153,15 @@ void manage_event()
     for (int i = 0 ; i < ${eventList?size} ; i++)
     {
         if (event_list[i] == TRUE)
-        {
+        {   
+            SEMO_LOG_INFO("explore event for %d", i);
             explore_to_find_next_mode(i);
         }
     }
 
     if (EVENT_EXPLORE_RESULT.next_mode != -1)
     {
+        SEMO_LOG_INFO("next mode selected %d", EVENT_EXPLORE_RESULT.next_mode);
         deal_with_result();
     }
 }

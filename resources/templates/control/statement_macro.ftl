@@ -28,16 +28,11 @@
                 	break;
                 }
 
-                for (int port_index = 0 ; port_index < action->input_list_size ; port_index++)
-                {
-                    fill_buffer_from_elements(action->input_port_list[port_index].variable);
-                    UFPort_WriteToBuffer(action->input_port_list[port_index].port_id, (unsigned char*) action->input_port_list[port_index].variable->buffer, action->input_port_list[port_index].variable->size, 0, &dataLen);
-                }
+                run_action_task(action->action_task_id);
                 if (action->group_port != NULL) 
                 {
                     UFPort_WriteToBuffer(action->group_port->port_id, (unsigned char*) service_list[service_index].group, sizeof(GROUP_ID), 0, &dataLen);
                 }
-                run_action_task(action->action_task_id);
             }
             <#if statement.statement.statement.outputList?size gt 0>
         	result = UFPort_GetNumOfAvailableData(action->output_port_list[0].port_id, 0, &dataNum);
@@ -46,11 +41,9 @@
             if (action->return_immediate == TRUE || action->state == SEMO_WRAPUP || action->state == SEMO_STOP<#if statement.statement.statement.outputList?size gt 0> || dataNum > 0</#if>)
             {
                 <@TRANSITION statement "TRUE" service 1/>
-                stop_action_task(action->action_task_id);
-                for (int port_index = 0 ; port_index < action->output_list_size ; port_index++)
+                if(action->return_immediate != TRUE)
                 {
-                    UFPort_ReadFromQueue(action->output_port_list[port_index].port_id, (unsigned char*) action->output_port_list[port_index].variable->buffer, action->output_port_list[port_index].variable->size, 0, &dataLen);
-                    fill_elements_from_buffer(action->output_port_list[port_index].variable);
+                    stop_action_task(action->action_task_id);
                 }
             }
 </#macro>
@@ -130,4 +123,5 @@
             <#if statement.statement.statement.isBroadcast() == true>
             UFPort_WriteToQueue(throw_out_port_of_${statement.statementId}.port->port_id, (unsigned char*) &event, sizeof(semo_int32), 0, &dataLen);
             </#if>
+            <@TRANSITION statement "TRUE" service 0/>
 </#macro>

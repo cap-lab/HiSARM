@@ -15,7 +15,7 @@ TASK_CODE_BEGIN
 // CHANNEL VARIABLE DEFINE
 <#list channelPortMap as inPort, outPort>
     <#if inPort.variableType.variableType.type.getValue() == "enum">
-STATIC VARIABLE_${inPort.variableType.variableType.name} ${inPort.getVariableName()}[${inPort.variableType.variableType.count}];
+STATIC VARIABLE_TYPE_${inPort.variableType.variableType.name} ${inPort.getVariableName()}[${inPort.variableType.variableType.count}];
     <#else>
 STATIC ${inPort.variableType.variableType.type.getValue()} ${inPort.getVariableName()}[${inPort.variableType.variableType.count}];
     </#if>
@@ -29,7 +29,7 @@ STATIC ${inPort.variableType.variableType.type.getValue()} ${inPort.getVariableN
 STATIC struct _${multicastPort.getVariableName()} {
     MULTICAST_PACKET_HEADER header;
     <#if multicastPort.variableType.variableType.type.getValue() == "enum">
-    VARIABLE_${multicastPort.variableType.variableType.name} body[${multicastPort.variableType.variableType.count}];
+    VARIABLE_TYPE_${multicastPort.variableType.variableType.name} body[${multicastPort.variableType.variableType.count}];
     <#else>
     ${multicastPort.variableType.variableType.type.getValue()} body[${multicastPort.variableType.variableType.count}];
     </#if>
@@ -46,7 +46,7 @@ STATIC MULTICAST_PACKET packet_${multicastPort.getVariableName()} = {&${multicas
 STATIC struct _${libPort.library.name} {
     MULTICAST_PACKET_HEADER header;
     <#if libPort.library.variableType.variableType.type.getValue() == "enum">
-    VARIABLE_${libPort.variableType.variableType.name} body[${libPort.variableType.variableType.count}];
+    VARIABLE_TYPE_${libPort.variableType.variableType.name} body[${libPort.variableType.variableType.count}];
     <#else>
     ${libPort.variableType.variableType.type.getValue()} body[${libPort.variableType.variableType.count}];
     </#if>
@@ -174,7 +174,7 @@ STATIC void channel_port_receive() {
     int data_len;
     for (int i = 0 ; i<sizeof(channel_port_list)/sizeof(CHANNEL_PORT) ; i++)
     {
-    	if (channelPortRead(channel_port_list[i].in_port_id, channel_port_list[i].buffer, channel_port_list[i].size, FALSE) > 0) 
+    	if (channel_port_read(channel_port_list[i].in_port_id, channel_port_list[i].buffer, channel_port_list[i].size, FALSE) > 0) 
     	{
     	    channel_port_list[i].refreshed = TRUE;
     	}
@@ -239,7 +239,7 @@ STATIC void leader_port_receive() {
 	         if (leader_port_list[i].robot_id_before_time < leader_port_list[i].robot_id_packet->header->time
                  && leader_port_list[i].robot_id_packet->header->sender_robot_id != THIS_ROBOT_ID) 
              {
-        		    leader_port_list[i].robot_id_set_func(leader_port_list[i].group_id, leader_port_list[i].robot_id_packet->data);
+        		    leader_port_list[i].robot_id_set_func(leader_port_list[i].group_id, *((int*)leader_port_list[i].robot_id_packet->data));
         		    leader_port_list[i].robot_id_before_time = leader_port_list[i].robot_id_packet->header->time;
              }
         }
@@ -249,7 +249,7 @@ STATIC void leader_port_receive() {
 	         if (leader_port_list[i].heartbeat_before_time < leader_port_list[i].heartbeat_packet->header->time
                  && leader_port_list[i].heartbeat_packet->header->sender_robot_id != THIS_ROBOT_ID) 
              {
-        		    leader_port_list[i].heartbeat_set_func(leader_port_list[i].group_id, leader_port_list[i].heartbeat_packet->data);
+        		    leader_port_list[i].heartbeat_set_func(leader_port_list[i].group_id, *((int*)leader_port_list[i].heartbeat_packet->data));
         		    leader_port_list[i].heartbeat_before_time = leader_port_list[i].heartbeat_packet->header->time;
              }
         }

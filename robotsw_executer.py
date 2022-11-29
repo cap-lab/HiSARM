@@ -37,6 +37,8 @@ for addr, client in ssh_manager_map.items():
     out = client.send_command("~/tools/opencr_reset /dev/ttyACM0 115200") 
     out = client.send_command("cd " + UPLOAD_TARGET_DIR + " && rm -f output.txt")
 
+for addr, client in ssh_manager_map.items():
+    client.send_command_by_channel("v4l2rtspserver -W 480 -H 480 -F 15 -P 8554 /dev/video0 &")
 print ("### Completed Setting BIO Robots ! ##")
 
 
@@ -54,6 +56,9 @@ while True:
 print ("### Stopping BIO Robots ! ############")
 for addr, client in ssh_manager_map.items():
     out = client.send_command("pkill " + TARGET_OS_BINARY_NAME) 
+
+for addr, client in ssh_manager_map.items():
+    out = client.send_command("pkill v4l2rtspserver")
 
 for addr, client in ssh_manager_map.items():
     out = client.send_command("~/tools/opencr_reset /dev/ttyACM0 115200") 

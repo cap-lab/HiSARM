@@ -23,6 +23,7 @@ TASK_GO
 	if (event_occured == TRUE)
 	{
 		manage_event();
+		event_list_init();
 		event_occured = FALSE;
 	}
 }

@@ -13,6 +13,7 @@ typedef struct TIMER {
 TIMER* get_timer(semo_int32 service_id, semo_int32 statement_id);
 TIMER* new_timer(int time, char *unit, semo_int32 service_id, semo_int32 statement_id);
 void remove_timer(TIMER* timer);
+void remove_all_service_timer(semo_int32 service_id);
 void remove_all_timer();
 int timer_check(TIMER *timer);
 

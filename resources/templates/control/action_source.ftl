@@ -28,28 +28,50 @@ ACTION_TASK action_task_list[${actionTaskList?size}] = {
 
 void run_action_task(semo_int32 action_task_id)
 {
-    if(action_task_list[action_task_id].state != SEMO_RUN){
-        SEMO_LOG_INFO("run action task id %d", action_task_id);
-        UFControl_RunTask(CONTROL_TASK_ID, action_task_list[action_task_id].task_name);
-        for (int i = 0 ; i < action_task_list[action_task_id].resource_list_size ; i++)
+    if(action_task_list[action_task_id].state != SEMO_RUN)
+    {
+        int dataLen = 0;
+        ACTION_TASK *action = action_task_list + action_task_id;
+        SEMO_LOG_INFO("run action task id %d name %s", action_task_id, action->task_name);
+        for (int port_index = 0 ; port_index < action->input_list_size ; port_index++)
         {
-            resource_list[action_task_list[action_task_id].resource_list[i]].state = OCCUPIED;
+            fill_buffer_from_elements(action->input_port_list[port_index].variable);
+            UFPort_WriteToBuffer(action->input_port_list[port_index].port_id, (unsigned char*) action->input_port_list[port_index].variable->buffer, action->input_port_list[port_index].variable->size, 0, &dataLen);
+        }
+        for (int resource_index = 0 ; resource_index < action->resource_list_size ; resource_index++)
+        {
+            resource_list[action->resource_list[resource_index]].state = OCCUPIED;
         } 
-        action_task_list[action_task_id].state = SEMO_RUN;
+        action->state = SEMO_RUN;
+        UFControl_RunTask(CONTROL_TASK_ID, action->task_name);
     }
 }
 void stop_action_task(semo_int32 action_task_id)
 {
     if(action_task_list[action_task_id].state != SEMO_STOP)
     {
-        SEMO_LOG_INFO("stop action task %d", action_task_id);
-        UFControl_StopTask(CONTROL_TASK_ID, action_task_list[action_task_id].task_name, FALSE);
-        for (int i = 0 ; i < action_task_list[action_task_id].resource_list_size ; i++)
+        int dataLen = 0;
+        ACTION_TASK *action = action_task_list + action_task_id;
+        SEMO_LOG_INFO("stop action task %d name %s", action_task_id, action->task_name);
+        UFControl_StopTask(CONTROL_TASK_ID, action->task_name, FALSE);
+        for (int port_index = 0 ; port_index < action->output_list_size ; port_index++)
         {
-            resource_list[action_task_list[action_task_id].resource_list[i]].state = NOT_OCCUPIED;
+            uem_result result = UFPort_GetNumOfAvailableData(action->output_port_list[port_index].port_id, 0, &dataLen);
+            ERRIFGOTO(result, _EXIT);
+            if (dataLen > 0)
+            {
+                UFPort_ReadFromQueue(action->output_port_list[port_index].port_id, (unsigned char*) action->output_port_list[port_index].variable->buffer, action->output_port_list[port_index].variable->size, 0, &dataLen);
+                fill_elements_from_buffer(action->output_port_list[port_index].variable);
+            }
+        }
+        for (int resource_index = 0 ; resource_index < action->resource_list_size ; resource_index++)
+        {
+            resource_list[action->resource_list[resource_index]].state = NOT_OCCUPIED;
         } 
-        action_task_list[action_task_id].state = SEMO_STOP;
+        action->state = SEMO_STOP;
     }
+_EXIT:
+    return;
 }
 
 void action_init()
@@ -78,7 +100,11 @@ void action_task_state_polling()
         {
             ETaskState state;
             UFTask_GetState(CONTROL_TASK_ID, action_task_list[i].task_name, &state);
-            if (state == STATE_END || state == STATE_STOP)
+            if (state == STATE_END )
+            {
+                action_task_list[i].state = SEMO_WRAPUP;
+            }
+            else if (state == STATE_STOP)
             {
                 action_task_list[i].state = SEMO_STOP;
             }

@@ -87,6 +87,7 @@ void stop_service(SERVICE_ID service_id)
             }
         }
     }
+    remove_all_service_timer(service_id);
 }
 
 void run_service(SERVICE_ID service_id, GROUP_ID group)
