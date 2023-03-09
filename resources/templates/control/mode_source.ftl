@@ -51,6 +51,10 @@ void stop_mode(MODE_ID mode_id)
     {
         stop_service(mode_list[mode_id].service_list[i]);
     }
+    for (int i = 0 ; i < mode_list[mode_id].group_candidate_list_size ; i++)
+    {
+        set_group_state(mode_list[mode_id].group_candidate_list[i], SEMO_DECREASE);
+    }
     set_group_state(mode_list[mode_id].group, SEMO_DECREASE);
     if (get_group_state(mode_list[mode_id].group) == 0) 
     {
@@ -84,4 +88,5 @@ void run_mode(MODE_ID mode_id)
         }
         set_group_state(mode_list[mode_id].group_candidate_list[i], SEMO_INCREASE);
     }
+    set_group_state(mode_list[mode_id].group, SEMO_INCREASE);
 }

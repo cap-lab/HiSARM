@@ -21,7 +21,7 @@ PORT output_port_of_${action.actionTask.name}[${action.outputList?size}] = {
         </#list>
 };
     </#if>
-    <#if action.actionTask.actionImpl.actionType.isGroupAction()>
+    <#if action.actionTask.groupPort?has_content>
 PORT group_port_of_${action.actionTask.name} = {
     "${action.group.port.name}", -1, &variable_group
 };

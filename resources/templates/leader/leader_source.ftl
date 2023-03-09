@@ -52,6 +52,7 @@ static SEMO_LEADER* find_leader_struct(semo_int32 group_id) {
             return &leader_list[i];
         }
     }
+    SEMO_LOG_ERROR("Not Found Leader Struct (Group Id %d)", group_id);
     return NULL;
 }
 
@@ -91,6 +92,7 @@ LIBFUNC(semo_int32, get_robot_id_leader, semo_int32 group_id) {
 LIBFUNC(void, set_robot_id_leader, semo_int32 group_id, semo_int32 robot_id) {
     SEMO_LEADER* leader = find_leader_struct(group_id);
     if (leader != NULL) {
+        SEMO_LOG_INFO("Set Leader (Group Id %d, Leader %d)", group_id, robot_id);
         UCThreadMutex_Lock(leader->leader_robot_id_mutex);
         leader->leader_robot_id = robot_id;
         leader->leader_robot_id_refreshed = TRUE;
@@ -180,6 +182,7 @@ LIBFUNC(semo_int32, get_heartbeat_report, semo_int32 group_id) {
 LIBFUNC(void, set_leader_selection_state, semo_int32 group_id, LEADER_SELECTION_STATE state) {
     SEMO_LEADER* leader = find_leader_struct(group_id);
     if (leader != NULL) {
+        SEMO_LOG_INFO("Set Leader Selection State (Group Id %d, State %d)", group_id, state);
         leader->leader_selection_state = state;
     }
 }
@@ -201,6 +204,7 @@ LIBFUNC(semo_int32, get_leader, semo_int32 group_id) {
 LIBFUNC(void, set_leader, semo_int32 group_id, semo_int32 robot_id) {
     SEMO_LEADER* leader = find_leader_struct(group_id);
     if (leader != NULL) {
+        SEMO_LOG_INFO("Set Leader (Group Id %d, Leader %d)", group_id, robot_id);
         leader->leader_id = robot_id;
     }
 }
