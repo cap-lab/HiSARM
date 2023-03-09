@@ -83,7 +83,7 @@ LIBFUNC(semo_int32, get_robot_id_leader, semo_int32 group_id) {
     semo_int32 robot_id = -1;
     if (leader != NULL) {
         UCThreadMutex_Lock(leader->leader_robot_id_mutex);
-        robot_id = leader->leader_robot_id;
+        robot_id = leader->listen_robot_id;
         leader->listen_robot_id_refreshed = FALSE;
         UCThreadMutex_Unlock(leader->leader_robot_id_mutex);
     }
@@ -145,7 +145,7 @@ LIBFUNC(semo_int32, get_heartbeat_leader, semo_int32 group_id) {
     semo_int32 heartbeat = -1;
     if (leader != NULL) {
         UCThreadMutex_Lock(leader->leader_heartbeat_mutex);
-        heartbeat = leader->leader_heartbeat;
+        heartbeat = leader->listen_heartbeat;
         leader->listen_heartbeat_refreshed = FALSE;
         UCThreadMutex_Unlock(leader->leader_heartbeat_mutex);
     }

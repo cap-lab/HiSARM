@@ -31,7 +31,7 @@
                 run_action_task(action->action_task_id);
                 if (action->group_port != NULL) 
                 {
-                    UFPort_WriteToBuffer(action->group_port->port_id, (unsigned char*) service_list[service_index].group, sizeof(GROUP_ID), 0, &dataLen);
+                    UFPort_WriteToBuffer(action->group_port->port_id, (unsigned char*) &service_list[service_index].group, sizeof(GROUP_ID), 0, &dataLen);
                 }
             }
             <#if statement.statement.statement.outputList?size gt 0>

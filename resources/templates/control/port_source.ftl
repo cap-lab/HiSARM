@@ -91,6 +91,9 @@ static void action_port_init() {
         UFPort_Initialize(CONTROL_TASK_ID, output_port_of_${action.actionTask.name}[i].port_name, &(output_port_of_${action.actionTask.name}[i].port_id));
     }
     </#if>
+    <#if action.actionTask.groupPort?has_content>
+    UFPort_Initialize(CONTROL_TASK_ID, group_port_of_${action.actionTask.name}.port_name, &(group_port_of_${action.actionTask.name}.port_id));
+    </#if>
 </#list>
 }
 
