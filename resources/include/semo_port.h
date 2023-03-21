@@ -72,6 +72,21 @@ typedef struct _SHARED_DATA_PORT
     semo_int64 before_time;
 } SHARED_DATA_PORT;
 
+typedef semo_int8 GROUP_ACTION_AVAIL_FUNC(semo_int32 task_id);
+typedef void GROUP_ACTION_SET_FUNC(semo_int32 task_id, semo_int32 robot_id, semo_int64 time);
+typedef struct _GROUP_ACTION_PORT
+{
+    char *multicast_port_name;
+    int multicast_group_id;
+    int multicast_port_id;
+    GROUP_ACTION_AVAIL_FUNC *lib_avail_func;
+    GROUP_ACTION_SET_FUNC *lib_set_func;
+    void *buffer;
+    MULTICAST_PACKET *packet;
+    semo_int32 size;
+    semo_int64 before_time;
+} GROUP_ACTION_PORT;
+
 typedef semo_int8 LEADER_AVAIL_FUNC(semo_int32 group_id);
 typedef semo_int32 LEADER_GET_FUNC(semo_int32 group_id);
 typedef void LEADER_SET_FUNC(semo_int32 group_id, semo_int32 robot_id);

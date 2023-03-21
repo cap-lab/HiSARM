@@ -56,7 +56,19 @@ STATIC MULTICAST_PACKET packet_${libPort.library.name} = {&${libPort.library.nam
 </#list>
 
 </#if>
-<#if leaderPortMap?size gt 0>
+<#if groupActionPortList?size gt 0>
+// GROUP ACTION VARIABLE DEFINE
+<#list groupActionPortList as multicastPort>
+#pragma pack(push, 1)
+STATIC struct _group_action_${multicastPort.message} {
+    MULTICAST_PACKET_HEADER header;
+    semo_int32 body[1];
+} group_action_${multicastPort.message} = {{-1, THIS_ROBOT_ID}, {${multicastPort.message}}};
+#pragma pack(pop)
+STATIC MULTICAST_PACKET packet_group_action_${multicastPort.message} = {&group_action_${multicastPort.message}.header, group_action_${multicastPort.message}.body};
+</#list>
+
+</#if>
 // LEADER VARIABLE DEFINE
 <#list leaderPortMap as robotIdPort, heartbeatPort>
 #pragma pack(push, 1)
@@ -75,7 +87,6 @@ STATIC struct _${heartbeatPort.getVariableName()} {
 STATIC MULTICAST_PACKET packet_${heartbeatPort.getVariableName()} = {&${heartbeatPort.getVariableName()}.header, ${heartbeatPort.getVariableName()}.body};
 </#list>
 
-</#if>
 <#if channelPortMap?size gt 0>
 // CHANNEL_PORT_SECTION
 STATIC CHANNEL_PORT channel_port_list[${channelPortMap?size}] = {
@@ -103,11 +114,20 @@ STATIC SHARED_DATA_PORT shared_data_port_list[${sharedDataPortMap?size}] = {
 };
 
 </#if>
+<#if groupActionPortList?size gt 0>
+// GROUP ACTION PORT SECTION
+STATIC GROUP_ACTION_PORT group_action_port_list[${groupActionPortList?size}] = {
+<#list groupActionPortList as multicastPort>
+    {"${multicastPort.name}", -1, -1, l_${robotId}_group_action_avail_group_action_report, NULL, &group_action_${multicastPort.message}, &packet_group_action_${multicastPort.message}, 4, -1},
+</#list>
+};
+
+</#if>
 // LEADER PORT SECTION
 STATIC LEADER_PORT leader_port_list[${leaderPortMap?size}] = {
     <#list leaderPortMap as robotIdPort, heartbeatPort>
-    {"${robotIdPort.name}", -1, -1, &${robotIdPort.getVariableName()}, &packet_${robotIdPort.getVariableName()}, -1, l_${robotId}leader_avail_robot_id_report, l_${robotId}leader_get_robot_id_report, NULL,
-    "${heartbeatPort.name}", -1, -1, &${heartbeatPort.getVariableName()}, &packet_${heartbeatPort.getVariableName()}, -1, l_${robotId}leader_avail_heartbeat_report, l_${robotId}leader_get_heartbeat_report, NULL, ID_GROUP_${robotIdPort.message}, 16},
+    {"${robotIdPort.name}", -1, -1, &${robotIdPort.getVariableName()}, &packet_${robotIdPort.getVariableName()}, -1, l_${robotId}_leader_avail_robot_id_report, l_${robotId}_leader_get_robot_id_report, NULL,
+    "${heartbeatPort.name}", -1, -1, &${heartbeatPort.getVariableName()}, &packet_${heartbeatPort.getVariableName()}, -1, l_${robotId}_leader_avail_heartbeat_report, l_${robotId}_leader_get_heartbeat_report, NULL, ID_GROUP_${robotIdPort.message}, 16},
     </#list>
 };
 
@@ -143,6 +163,15 @@ STATIC void shared_data_port_init_() {
 }
 
 </#if>
+<#if groupActionPortList?size gt 0>
+STATIC void group_action_port_init() {
+    for (int i = 0 ; i<sizeof(group_action_port_list)/sizeof(GROUP_ACTION_PORT) ; i++)
+    {
+        UFMulticastPort_Initialize(THIS_TASK_ID, group_action_port_list[i].multicast_port_name, &(group_action_port_list[i].multicast_group_id), &(group_action_port_list[i].multicast_port_id));
+    }
+}
+
+</#if>
 STATIC void leader_port_init_() {
     for (int i = 0 ; i < sizeof(leader_port_list)/sizeof(LEADER_PORT) ; i++)
     {
@@ -162,6 +191,9 @@ TASK_INIT
 </#if>
 <#if sharedDataPortMap?size gt 0>
     shared_data_port_init_();
+</#if>
+<#if groupActionPortList?size gt 0>
+    group_action_port_init();
 </#if>
     leader_port_init_();
 }
@@ -219,6 +251,20 @@ STATIC void shared_data_port_send() {
 }
 
 </#if>
+<#if groupActionPortList?size gt 0>
+STATIC void group_action_port_send() {
+    for (int i = 0 ; i<sizeof(group_action_port_list)/sizeof(GROUP_ACTION_PORT) ; i++)
+    {
+        if (group_action_port_list[i].lib_avail_func(*(int*)group_action_port_list[i].packet->data) == TRUE) 
+        {
+            int data_len;
+            UFTimer_GetCurrentTime(THIS_TASK_ID, &(group_action_port_list[i].packet->header->time));
+            UFMulticastPort_WriteToBuffer(group_action_port_list[i].multicast_group_id, group_action_port_list[i].multicast_port_id, (unsigned char * ) group_action_port_list[i].buffer, group_action_port_list[i].size + sizeof(MULTICAST_PACKET_HEADER), &data_len);
+        }
+    }
+}
+
+</#if>
 STATIC void leader_port_send() {
     for (int i = 0 ; i < sizeof(leader_port_list)/sizeof(LEADER_PORT) ; i++)
     {
@@ -249,6 +295,9 @@ TASK_GO
 </#if>
 <#if sharedDataPortMap?size gt 0>
     shared_data_port_send();
+</#if>
+<#if groupActionPortList?size gt 0>
+    group_action_port_send();
 </#if>
     leader_port_send();
 }

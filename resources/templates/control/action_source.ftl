@@ -2,8 +2,13 @@
 #include "${robotId}_common.h"
 #include "${robotId}_port.h"
 #include "UFTask.h"
+#include "UFTimer.h"
 #include "UFControl.h"
 #include "semo_logger.h"
+
+#define LIBCALL(x, ...) LIBCALL_##x(__VA_ARGS__)
+#define LIBCALL_group_action(f, ...) l_${robotId}_group_action_##f(__VA_ARGS__)                                                                                                                                     
+#include "${robotId}_group_action.cicl.h"
 
 // DEFINE ACTION RESOURCE LIST
 <#list actionTaskList as actionTask>
@@ -19,20 +24,52 @@ RESOURCE_ID resource_list_of_${actionTask.name}[${actionTask.actionImpl.actionIm
 // DEFINE ACTION TASK
 ACTION_TASK action_task_list[${actionTaskList?size}] = {
 <#list actionTaskList as actionTask>
-    {ID_ACTION_TASK_${actionTask.name}, ID_ACTION_TYPE_${actionTask.actionImpl.actionType.action.name}, ${actionTask.id}, "${actionTask.taskName}", 
-     SEMO_RUN, <#if actionTask.actionImpl.actionImpl.getReturnImmediate()>TRUE<#else>FALSE</#if>, <#if actionTask.actionImpl.actionImpl.needdedResource?has_content>${actionTask.actionImpl.actionImpl.needdedResource?size}, resource_list_of_${actionTask.name}<#else>0, NULL</#if>, 
-     ${actionTask.inputPortList?size}, <#if actionTask.inputPortList?size gt 0>input_port_of_${actionTask.name}<#else>NULL</#if>, ${actionTask.outputPortList?size}, <#if actionTask.outputPortList?size gt 0>output_port_of_${actionTask.name}<#else>NULL</#if>,
-     <#if actionTask.groupPort?has_content>&group_port_of_${actionTask.name}<#else>NULL</#if>},
+    {ID_ACTION_TASK_${actionTask.name}, // ACTION_TASK_ID action_task_id
+     ID_ACTION_TYPE_${actionTask.actionImpl.actionType.action.name}, // ACTION_TYPE_ID action_type_id
+     ${actionTask.id}, // semo_int32 task_id
+     "${actionTask.taskName}", // char *task_name
+     SEMO_RUN, // SEMO_STATE state
+     <#if actionTask.actionImpl.actionImpl.getReturnImmediate()>TRUE<#else>FALSE</#if>, // semo_int8 return_immediate
+     <#if actionTask.actionImpl.actionImpl.needdedResource?has_content>${actionTask.actionImpl.actionImpl.needdedResource?size}<#else>0</#if>, // semo_int32 resource_list_size 
+     <#if actionTask.actionImpl.actionImpl.needdedResource?has_content>resource_list_of_${actionTask.name}<#else>NULL</#if>, // RESOURCE_ID *resource_list
+     ${actionTask.inputPortList?size}, // semo_int32 input_list_size
+     <#if actionTask.inputPortList?size gt 0>input_port_of_${actionTask.name}<#else>NULL</#if>, // PORT *input_port_list
+     ${actionTask.outputPortList?size}, // semo_int32 output_list_size
+     <#if actionTask.outputPortList?size gt 0>output_port_of_${actionTask.name}<#else>NULL</#if>, // PORT *output_port_list
+     <#if actionTask.actionImpl.actionType.isGroupAction()>TRUE<#else>FALSE</#if>, // semo_int8 is_group_action,
+     ${actionTask.groupActionIndex}, // semo_int32 group_action_id,
+     <#if actionTask.groupPort?has_content>&group_port_of_${actionTask.name}<#else>NULL</#if>}, // PORT *group_port
 </#list>
 };
 
+semo_int8 check_group_action_task(ACTION_TASK *action)
+{
+    semo_int64 cur_time = 0;
+    UFTimer_GetCurrentTime(CONTROL_TASK_ID, &cur_time);
+    if (action->state == SEMO_STOP)
+    {
+        LIBCALL(group_action, set_group_action_control, action->group_action_id, TRUE, cur_time);
+        action->state = SEMO_READY;
+    } 
+    else if (action->state == SEMO_READY) 
+    {
+        LIBCALL(group_action, set_robot_id_control, action->group_action_id);
+        return LIBCALL(group_action, get_group_action_control, action->group_action_id, cur_time);
+    }
+    return FALSE;
+}
+
 void run_action_task(semo_int32 action_task_id)
 {
-    if(action_task_list[action_task_id].state != SEMO_RUN)
+    if (action_task_list[action_task_id].state != SEMO_RUN)
     {
         int dataLen = 0;
         ACTION_TASK *action = action_task_list + action_task_id;
-        SEMO_LOG_INFO("run action task id %d name %s", action_task_id, action->task_name);
+        int run = TRUE;
+        if (action->state == SEMO_STOP)
+        {
+            SEMO_LOG_INFO("run action task id %d name %s", action_task_id, action->task_name);
+        }
         for (int port_index = 0 ; port_index < action->input_list_size ; port_index++)
         {
             fill_buffer_from_elements(action->input_port_list[port_index].variable);
@@ -42,13 +79,27 @@ void run_action_task(semo_int32 action_task_id)
         {
             resource_list[action->resource_list[resource_index]].state = OCCUPIED;
         } 
-        action->state = SEMO_RUN;
-        UFControl_RunTask(CONTROL_TASK_ID, action->task_name);
+        if (action->is_group_action == TRUE)
+        {
+            run = check_group_action_task(action);
+        }
+        if (run == TRUE)
+        {
+            action->state = SEMO_RUN;
+            UFControl_RunTask(CONTROL_TASK_ID, action->task_name);
+        }
     }
 }
+
+void wrapup_group_action(ACTION_TASK *action)
+{
+    semo_int64 cur_time = 0;
+    LIBCALL(group_action, set_group_action_control, action->group_action_id, FALSE, cur_time);
+}
+
 void stop_action_task(semo_int32 action_task_id)
 {
-    if(action_task_list[action_task_id].state != SEMO_STOP)
+    if (action_task_list[action_task_id].state != SEMO_STOP)
     {
         int dataLen = 0;
         ACTION_TASK *action = action_task_list + action_task_id;
@@ -68,6 +119,10 @@ void stop_action_task(semo_int32 action_task_id)
         {
             resource_list[action->resource_list[resource_index]].state = NOT_OCCUPIED;
         } 
+        if (action->is_group_action == TRUE)
+        {
+            wrapup_group_action(action);
+        }
         action->state = SEMO_STOP;
     }
 _EXIT:

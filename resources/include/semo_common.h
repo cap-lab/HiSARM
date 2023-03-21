@@ -27,6 +27,7 @@ extern "C"
         SEMO_STOP,
         SEMO_WRAPUP,
         SEMO_PENDING,
+        SEMO_READY,
     } SEMO_STATE;
 
 #ifndef TRUE

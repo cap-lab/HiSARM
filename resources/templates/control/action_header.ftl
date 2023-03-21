@@ -30,6 +30,8 @@ typedef struct _ACTION_TASK {
     PORT *input_port_list;
     semo_int32 output_list_size;
     PORT *output_port_list;
+    semo_int8 is_group_action;
+    semo_int32 group_action_id;
     PORT *group_port;
 } ACTION_TASK;
 

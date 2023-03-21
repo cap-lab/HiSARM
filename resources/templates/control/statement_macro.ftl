@@ -11,28 +11,30 @@
             int dataLen;
             int dataNum = 0;
             
-            if (action->state == SEMO_STOP) 
+            if (action->state == SEMO_STOP || action->state == SEMO_READY) 
             {
-                semo_int8 resource_conflict = FALSE;
-                for(int resource_index = 0 ; resource_index < action->resource_list_size ; resource_index++)
+                if (action->state == SEMO_STOP)
                 {
-                    RESOURCE *resource = resource_list + action->resource_list[resource_index];
-                    if (resource->state == OCCUPIED)
+                    semo_int8 resource_conflict = FALSE;
+                    for(int resource_index = 0 ; resource_index < action->resource_list_size ; resource_index++)
                     {
-                        action_task_list[resource->action_id].state = SEMO_WRAPUP;
-                        resource_conflict = TRUE;
+                        RESOURCE *resource = resource_list + action->resource_list[resource_index];
+                        if (resource->state == OCCUPIED)
+                        {
+                            action_task_list[resource->action_id].state = SEMO_WRAPUP;
+                            resource_conflict = TRUE;
+                        }
+                    }
+            	    if (resource_conflict == TRUE)
+                    {
+                    	break;
+                    }
+                    if (action->group_port != NULL) 
+                    {
+                        UFPort_WriteToBuffer(action->group_port->port_id, (unsigned char*) &service_list[service_index].group, sizeof(GROUP_ID), 0, &dataLen);
                     }
                 }
-            	if (resource_conflict == TRUE)
-                {
-                	break;
-                }
-
                 run_action_task(action->action_task_id);
-                if (action->group_port != NULL) 
-                {
-                    UFPort_WriteToBuffer(action->group_port->port_id, (unsigned char*) &service_list[service_index].group, sizeof(GROUP_ID), 0, &dataLen);
-                }
             }
             <#if statement.statement.statement.outputList?size gt 0>
         	result = UFPort_GetNumOfAvailableData(action->output_port_list[0].port_id, 0, &dataNum);
