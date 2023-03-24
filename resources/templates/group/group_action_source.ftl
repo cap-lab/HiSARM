@@ -1,4 +1,5 @@
-#define GROUP_ACTION_THRESHOLD 10000
+#define GROUP_ACTION_INITIAL_THRESHOLD 3000
+#define GROUP_ACTION_REFRESHED_THRESHOLD 1000
 
 typedef struct _SEMO_GROUP_ACTION {
     semo_int32 action_id;
@@ -6,8 +7,9 @@ typedef struct _SEMO_GROUP_ACTION {
     semo_int64 last_time;
     semo_int32 *robot_list;
     semo_int32 robot_list_index;
-    HThreadMutex mutex;
     semo_int8 refreshed;
+    semo_int32 threshold;
+    HThreadMutex mutex;
     HThreadMutex report_mutex;
 } SEMO_GROUP_ACTION;
 
@@ -17,7 +19,7 @@ semo_int32 robot_list_${ga.groupActionIndex}[${NumOfRobot}];
 
 static SEMO_GROUP_ACTION group_action_list[${groupActionList?size}] = {
 <#list groupActionList as ga>
-    {${ga.groupActionIndex}, FALSE, -1, robot_list_${ga.groupActionIndex}, 0, FALSE},
+    {${ga.groupActionIndex}, FALSE, -1, robot_list_${ga.groupActionIndex}, 0, FALSE, GROUP_ACTION_INITIAL_THRESHOLD,},
 </#list>
 };
 
@@ -61,6 +63,9 @@ LIBFUNC(void, set_group_action_listen, semo_int32 action_id, semo_int32 robot_id
                 UCThreadMutex_Lock(group_action->mutex);
                 group_action->robot_list[group_action->robot_list_index] = robot_id;
                 group_action->robot_list_index++;
+                if (time - group_action->last_time < GROUP_ACTION_REFRESHED_THRESHOLD){
+                    group_action->threshold = GROUP_ACTION_REFRESHED_THRESHOLD;
+                }
                 group_action->last_time = time;
                 UCThreadMutex_Unlock(group_action->mutex);
                 SEMO_LOG_INFO("New Robot (Action Id %d, Robot Id %d, Time %lld)", action_id, robot_id, time);
@@ -76,6 +81,7 @@ LIBFUNC(void, set_group_action_control, semo_int32 action_id, semo_int8 sync_sta
         UCThreadMutex_Lock(group_action->mutex);
         group_action->robot_list_index = 0;
         group_action->last_time = time;
+        group_action->threshold = GROUP_ACTION_INITIAL_THRESHOLD;
         UCThreadMutex_Unlock(group_action->mutex);
         SEMO_LOG_INFO("Set Group Action State (Action Id %d, State %d, Time %lld)", action_id, sync_state, time);
     }
@@ -101,7 +107,7 @@ LIBFUNC(semo_int8, get_group_action_control, semo_int32 action_id, semo_int64 ti
             SEMO_LOG_ERROR("Group Action Sync State is False (Action Id %d)", action_id);
             return FALSE;
         }
-        if (time - group_action->last_time > GROUP_ACTION_THRESHOLD) {
+        if (time - group_action->last_time > group_action->threshold) {
             SEMO_LOG_INFO("Group Action Sync Finished (Action Id %d, Time %lld)", action_id, time);
             return TRUE;
         }

@@ -8,6 +8,7 @@ import yaml
 import pickle
 
 from pymongo import MongoClient
+from threading import Thread
 
 from ssh_manager import SSHManager
 
@@ -119,33 +120,58 @@ def getUploadTargetIP(robotName, robotImplCollection):
     return ip_address
 
 
+class BinaryUploader:
+    def __init__(self, dir_name, target, ip_address):
+        self.dir_name = dir_name
+        self.target = target
+        self.ip_address = ip_address
+
+
+def uploadSingleRobotBinary(binary_uploader):
+    print("upload binary start: " + binary_uploader.dir_name)
+    ssh_manager = SSHManager()
+    ssh_manager.create_ssh_client(binary_uploader.ip_address)
+    #ssh_manager.create_ssh_client("192.168.50.5")
+    out = ssh_manager.send_command("mkdir " + UPLOAD_TARGET_DIR) 
+    if binary_uploader.target == "OS":
+        out = ssh_manager.send_file(os.path.join(binary_uploader.dir_name, "./proc"), os.path.join(UPLOAD_TARGET_DIR, TARGET_OS_BINARY_NAME))
+    elif binary_uploader.target == "NonOS":
+        out = ssh_manager.send_file(os.path.join(binary_uploader.dir_name, "./build-" + NONOS_BOARD_NAME, binary_uploader.dir_name + ".bin"), os.path.join(UPLOAD_TARGET_DIR, TARGET_NONOS_BINARY_NAME))
+        out = ssh_manager.send_command("~/tools/opencr_ld /dev/ttyACM0 115200 " + os.path.join(UPLOAD_TARGET_DIR, TARGET_NONOS_BINARY_NAME) + " 1") 
+    ssh_manager.close_ssh_client()
+    print("upload binary end: " + binary_uploader.dir_name)
+   
+
+
 def uploadRobotBinary(projectDirPath, dbHandle, robotList):
     uploaded_robot_addr_list = []
     working_dir_path = os.getcwd()
     robotImpl_collection = dbHandle['RobotImpl']
     os.chdir(projectDirPath)
-    ssh_manager = SSHManager()
+    binary_uploader_list = []
     for file_name in os.listdir("."):
         if os.path.isdir(file_name): 
             os.chdir(file_name)
             robot_name = getMatchedRobotFromDirName(file_name, robotList)
             target = checkBuildTarget()
             ip_address = getUploadTargetIP(robot_name, robotImpl_collection)
-            print("upload binary start: " + file_name)
-            ssh_manager.create_ssh_client(ip_address)
-            #ssh_manager.create_ssh_client("192.168.50.5")
-            out = ssh_manager.send_command("mkdir " + UPLOAD_TARGET_DIR) 
-            if target == "OS":
-                out = ssh_manager.send_file("./proc", os.path.join(UPLOAD_TARGET_DIR, TARGET_OS_BINARY_NAME))
-            elif target == "NonOS":
-                out = ssh_manager.send_file(os.path.join("./build-" + NONOS_BOARD_NAME, file_name + ".bin"), os.path.join(UPLOAD_TARGET_DIR, TARGET_NONOS_BINARY_NAME))
-                out = ssh_manager.send_command("~/tools/opencr_ld /dev/ttyACM0 115200 " + os.path.join(UPLOAD_TARGET_DIR, TARGET_NONOS_BINARY_NAME) + " 1") 
-            ssh_manager.close_ssh_client()
-            print("upload binary end: " + file_name)
+            binary_uploader = BinaryUploader(file_name, target, ip_address)
+            binary_uploader_list.append(binary_uploader)
             if ip_address not in uploaded_robot_addr_list:
                 uploaded_robot_addr_list.append(ip_address)
-
             os.chdir("..")
+
+    thread_list = []
+    for uploader in binary_uploader_list:
+        thread = Thread(target=uploadSingleRobotBinary, args=(uploader,))
+        thread_list.append(thread)
+
+    for thread in thread_list:
+        thread.start()
+
+    for thread in thread_list:
+        thread.join()
+
     os.chdir(working_dir_path)
     return uploaded_robot_addr_list
 
@@ -185,7 +211,6 @@ project_dir_path = os.path.join(generated_dir_path, target_project)
 
 buildAllDevices(project_dir_path)
 print ("### BIO SW Build is done! ################")
-
 
 
 print ("### BIO SW Upload is started! ############")
