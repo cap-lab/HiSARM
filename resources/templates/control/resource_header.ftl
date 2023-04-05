@@ -5,20 +5,16 @@
 
 typedef enum _RESOURCE_ID {
 <#list resourceList as resource>
-    ID_RESOURCE_${resource},
+    ID_RESOURCE_${resource.getResourceId()},
 </#list>
     ID_RESOURCE_LAST
 } RESOURCE_ID;
 
-typedef enum _RESOURCE_STATE {
-    OCCUPIED,
-    NOT_OCCUPIED
-} RESOURCE_STATE;
-
 typedef struct _RESOURCE {
     RESOURCE_ID resource_id;
-    RESOURCE_STATE state;
-    semo_int32 action_id;
+    semo_int32 reference_count;
+    semo_int32 *action_id_list;
+    semo_int8 conflict;
 } RESOURCE;
 
 extern RESOURCE resource_list[${resourceList?size}];

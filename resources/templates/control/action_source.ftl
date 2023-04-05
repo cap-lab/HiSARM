@@ -77,7 +77,8 @@ void run_action_task(semo_int32 action_task_id)
         }
         for (int resource_index = 0 ; resource_index < action->resource_list_size ; resource_index++)
         {
-            resource_list[action->resource_list[resource_index]].state = OCCUPIED;
+            resource_list[action->resource_list[resource_index]].action_id_list[resource_list[action->resource_list[resource_index]].reference_count] = action->action_task_id;
+            resource_list[action->resource_list[resource_index]].reference_count += 1;
         } 
         if (action->is_group_action == TRUE)
         {
@@ -117,7 +118,19 @@ void stop_action_task(semo_int32 action_task_id)
         }
         for (int resource_index = 0 ; resource_index < action->resource_list_size ; resource_index++)
         {
-            resource_list[action->resource_list[resource_index]].state = NOT_OCCUPIED;
+            int removed = FALSE;
+            for (int resource_action_index = 0 ; resource_action_index < resource_list[action->resource_list[resource_index]].reference_count ; resource_action_index++) 
+            {
+                if (removed == TRUE) 
+                {
+                    resource_list[action->resource_list[resource_index]].action_id_list[resource_action_index-1] = resource_list[action->resource_list[resource_index]].action_id_list[resource_action_index];
+                }
+                if (resource_list[action->resource_list[resource_index]].action_id_list[resource_action_index] == action->action_task_id)
+                {
+                    removed = TRUE;
+                }
+            }
+            resource_list[action->resource_list[resource_index]].reference_count -= 1;
         } 
         if (action->is_group_action == TRUE)
         {

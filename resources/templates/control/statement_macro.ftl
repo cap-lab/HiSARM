@@ -19,9 +19,9 @@
                     for(int resource_index = 0 ; resource_index < action->resource_list_size ; resource_index++)
                     {
                         RESOURCE *resource = resource_list + action->resource_list[resource_index];
-                        if (resource->state == OCCUPIED)
+                        if (resource->reference_count > 0 && resource->conflict == TRUE)
                         {
-                            action_task_list[resource->action_id].state = SEMO_WRAPUP;
+                            action_task_list[resource->action_id_list[0]].state = SEMO_WRAPUP;
                             resource_conflict = TRUE;
                         }
                     }

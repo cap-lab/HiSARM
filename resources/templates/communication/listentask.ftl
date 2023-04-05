@@ -102,7 +102,7 @@ STATIC CHANNEL_PORT channel_port_list[${channelPortMap?size}] = {
 // MULTICAST PORT SECTION
 STATIC MULTICAST_PORT multicast_port_list[${multicastPortMap?size}] = {
 <#list multicastPortMap as channelPort, multicastPort>
-    {"${multicastPort.name}", -1, -1, "${channelPort.name}", -1, &${multicastPort.getVariableName()}, &packet_${multicastPort.getVariableName()}, ${multicastPort.variableType.getSize()}, -1},
+    {"${multicastPort.name}", -1, -1, "${channelPort.name}", -1, &${multicastPort.getVariableName()}, &packet_${multicastPort.getVariableName()}, ${multicastPort.variableType.getSize()}, -1, "${multicastPort.name}_out", -1, -1},
 </#list>
 };
 
@@ -152,6 +152,7 @@ STATIC void multicast_port_init() {
     {
         UFPort_Initialize(THIS_TASK_ID, multicast_port_list[i].channel_port_name, &(multicast_port_list[i].channel_port_id));
         UFMulticastPort_Initialize(THIS_TASK_ID, multicast_port_list[i].multicast_port_name, &(multicast_port_list[i].multicast_group_id), &(multicast_port_list[i].multicast_port_id));
+        UFMulticastPort_Initialize(THIS_TASK_ID, multicast_port_list[i].multicast_out_port_name, &(multicast_port_list[i].multicast_out_group_id), &(multicast_port_list[i].multicast_out_port_id));
     }
 }
 
@@ -237,6 +238,7 @@ STATIC void multicast_port_receive() {
                 if (channel_port_write(multicast_port_list[i].channel_port_id, multicast_port_list[i].packet->data, multicast_port_list[i].size, FALSE) > 0) 
                 {
                 	    multicast_port_list[i].before_time = multicast_port_list[i].packet->header->time;
+                        UFMulticastPort_WriteToBuffer(multicast_port_list[i].multicast_out_group_id, multicast_port_list[i].multicast_out_port_id, (unsigned char*) multicast_port_list[i].buffer, multicast_port_list[i].size + sizeof(MULTICAST_PACKET_HEADER), &data_len);
                 }
             }
         }

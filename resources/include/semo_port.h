@@ -53,6 +53,9 @@ typedef struct _MULTICAST_PORT
     MULTICAST_PACKET *packet;
     semo_int32 size;
     semo_int64 before_time;
+    char *multicast_out_port_name;
+    int multicast_out_group_id;
+    int multicast_out_port_id;
 } MULTICAST_PORT;
 
 typedef semo_int8 LIBRARY_AVAIL_FUNC();
