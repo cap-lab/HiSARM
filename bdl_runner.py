@@ -200,6 +200,10 @@ process = subprocess.Popen(["java", "-jar", "semo.jar", sys.argv[2], sys.argv[1]
 # stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL can be added to remove HOPES-style messages from UEM Code generator
 
 process.wait()
+
+if process.returncode != 0:
+    print("Error is occurred during code generation!")
+    sys.exit(1)
 print ("### BIO SW Code generation is done! ######")
 
 
