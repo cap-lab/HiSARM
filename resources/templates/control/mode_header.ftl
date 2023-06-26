@@ -16,8 +16,8 @@ typedef enum _MODE_ID {
 typedef struct _MODE {
     MODE_ID mode_id;
     SEMO_STATE state;
-    semo_int32 group_candidate_list_size;
-    GROUP_ID *group_candidate_list;
+    semo_int8 need_select_group;
+    GROUP_ID selected_group;
     semo_int32 variable_map_list_size;
     VARIABLE_MAP *variable_map_list;
     semo_int32 service_list_size;

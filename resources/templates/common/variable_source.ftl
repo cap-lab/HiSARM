@@ -12,6 +12,8 @@ ${variable.type.variableType.type.getValue()} variable_buffer_of_${variable.id}[
 </#list>
 semo_int32 variable_buffer_of_leader[2];
 semo_int32 variable_buffer_of_group[1];
+semo_int32 variable_buffer_of_grouping_mode[1];
+semo_int32 variable_buffer_of_grouping_result[1];
 
 // VARIABLE RELATION DEFINE
 <#list variableList as variable>
@@ -35,4 +37,10 @@ VARIABLE variable_leader = {
 };
 VARIABLE variable_group = {
     4, variable_buffer_of_group, 0, 0, NULL
+};
+VARIABLE variable_grouping_mode = {
+    4, variable_buffer_of_grouping_mode, 0, 0, NULL
+};
+VARIABLE variable_grouping_result = {
+    4, variable_buffer_of_grouping_result, 0, 0, NULL
 };

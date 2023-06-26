@@ -18,5 +18,7 @@ extern VARIABLE variable_${variable.id};
 </#list>
 extern VARIABLE variable_leader;
 extern VARIABLE variable_group;
+extern VARIABLE variable_grouping_mode;
+extern VARIABLE variable_grouping_result;
 
 #endif

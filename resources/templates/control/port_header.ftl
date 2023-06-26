@@ -41,6 +41,9 @@ extern semo_int32 throw_in_port_list_size;
 
 extern PORT port_of_leader;
 
+extern PORT port_of_grouping_mode;
+extern PORT port_of_grouping_result;
+
 void port_init();
 COMM_PORT* get_team_port(COMM_PORT* port_list, semo_int32 port_list_size, semo_int32 team_id);
 #endif

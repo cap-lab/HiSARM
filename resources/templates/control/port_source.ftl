@@ -1,6 +1,7 @@
 #include "${robotId}_port.h"
 #include "${robotId}_common.h"
 #include "${robotId}_variable.h"
+#include "${robotId}_group.h"
 #include "${robotId}_team.h"
 #include "semo_logger.h"
 
@@ -47,23 +48,28 @@ COMM_PORT throw_out_port_of_${throwStatement.statementId} = {&port_of_${throwSta
     </#if>
 </#list>
 
+<#assign thInPortNameList = []>
 <#assign thInPortList = []>
 <#list throwStatementList as throwStatement>
     <#if throwStatement.statement.statement.isBroadcast() == true>
-        <#if thInPortList?seq_contains(throwStatement.th.inPort.port.name)>
+        <#if thInPortNameList?seq_contains(throwStatement.th.inPort.port.name)>
         <#else>
-        <#assign thInPortList = thInPortList + [throwStatement.th.inPort.port.name]>
+        <#assign thInPortList = thInPortList + [throwStatement.th.inPort]>
+        <#assign thInPortNameList = thInPortNameList + [throwStatement.th.inPort.port.name]>
         </#if>
     </#if>
 </#list>
 COMM_PORT throw_in_port_list[${thInPortList?size}] = {
 <#list thInPortList as thInPort>
-{&port_of_${thInPort}, NULL, 0},
+{&port_of_${thInPort.port.name}, NULL, ID_GROUP_${thInPort.groupId}},
 </#list>
 };
 semo_int32 throw_in_port_list_size = ${thInPortList?size};
 
 PORT port_of_leader = {"${leaderPort.name}", -1, &variable_leader};
+
+PORT port_of_grouping_mode = {"${groupingModePort.name}", -1, &variable_grouping_mode};
+PORT port_of_grouping_result = {"${groupingResultPort.name}", -1, &variable_grouping_result};
 
 COMM_PORT* get_team_port(COMM_PORT* port_list, semo_int32 port_list_size, semo_int32 team_id)
 {
@@ -105,6 +111,8 @@ static void comm_port_init() {
 
 static void additional_port_init() {
     UFPort_Initialize(CONTROL_TASK_ID, port_of_leader.port_name, &(port_of_leader.port_id));
+    UFPort_Initialize(CONTROL_TASK_ID, port_of_grouping_mode.port_name, &(port_of_grouping_mode.port_id));
+    UFPort_Initialize(CONTROL_TASK_ID, port_of_grouping_result.port_name, &(port_of_grouping_result.port_id));
 }
 
 void port_init() {

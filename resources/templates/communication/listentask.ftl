@@ -89,6 +89,19 @@ STATIC MULTICAST_PACKET packet_${heartbeatPort.getVariableName()} = {&${heartbea
 </#list>
 
 </#if>
+<#if groupingPortList?size gt 0>
+// GROUPING VARIABLE DEFINE
+#pragma pack(push, 1)
+STATIC struct _grouping {
+    GROUPING_PACKET_HEADER header;
+    semo_int32 robot_num;
+    SEMO_GROUPING_SHARED robot_info_list[${maxRobotNum}];
+    semo_uint8 body[${groupingLibPort.library.sharedDataSize*maxRobotNum}];
+} grouping = {{-1, -1, -1}, 0,};
+#pragma pack(pop)
+STATIC GROUPING_PACKET packet_grouping = {&grouping.header, &grouping.robot_num, grouping.robot_info_list, grouping.body};
+
+</#if>
 <#if channelPortMap?size gt 0>
 // CHANNEL PORT SECTION
 STATIC CHANNEL_PORT channel_port_list[${channelPortMap?size}] = {
@@ -133,6 +146,15 @@ STATIC LEADER_PORT leader_port_list[${leaderPortMap?size}] = {
 </#list>
 };
 
+<#if groupingPortList?size gt 0>
+// GROUPING PORT SECTION
+STATIC GROUPING_PORT grouping_port_list[${groupingPortList?size}] = {
+<#list groupingPortList as multicastPort>
+    {"${multicastPort.name}", -1, -1, NULL, NULL, l_${robotId}_grouping_set_shared_data_listen, &grouping, &packet_grouping, ${groupingLibPort.library.sharedDataSize}, -1},
+</#list>
+};
+
+</#if>
 /////////////////////////////////////
 // init code
 /////////////////////////////////////
@@ -183,6 +205,15 @@ STATIC void leader_port_init() {
     }
 }
 
+<#if groupingPortList?size gt 0>
+STATIC void grouping_port_init() {
+    for (int i = 0 ; i<sizeof(grouping_port_list)/sizeof(GROUPING_PORT) ; i++)
+    {
+        UFMulticastPort_Initialize(THIS_TASK_ID, grouping_port_list[i].multicast_port_name, &(grouping_port_list[i].multicast_group_id), &(grouping_port_list[i].multicast_port_id));
+    }
+}
+
+</#if>
 TASK_INIT
 {
 	SEMO_LOG_INFO("INIT");
@@ -199,6 +230,9 @@ TASK_INIT
     group_action_port_init();
 </#if>
     leader_port_init();
+<#if groupingPortList?size gt 0>
+    grouping_port_init();
+</#if>
 }
 
 /////////////////////////////////////
@@ -313,6 +347,25 @@ STATIC void leader_port_receive() {
     }
 }
 
+<#if groupingPortList?size gt 0>
+STATIC void grouping_port_receive() {
+    int data_len;
+    for (int i = 0 ; i<sizeof(grouping_port_list)/sizeof(GROUPING_PORT) ; i++)
+    {
+        UFMulticastPort_ReadFromBuffer(grouping_port_list[i].multicast_group_id, grouping_port_list[i].multicast_port_id, (unsigned char*) grouping_port_list[i].buffer, sizeof(grouping), &data_len);
+        if (data_len > 0) 
+        {
+	         if (grouping_port_list[i].before_time < grouping_port_list[i].packet->header->time 
+                 && grouping_port_list[i].packet->header->sender_robot_id != THIS_ROBOT_ID) 
+	         {
+        		    grouping_port_list[i].lib_set_func(grouping_port_list[i].packet->header->mode_id, grouping_port_list[i].packet->robot_info_list, *grouping_port_list[i].packet->shared_robot_num, grouping_port_list[i].packet->data, grouping_port_list[i].size);
+        		    grouping_port_list[i].before_time = grouping_port_list[i].packet->header->time;
+         	 }
+        }
+    }
+}
+
+</#if>
 TASK_GO
 {
 <#if channelPortMap?size gt 0>
@@ -328,9 +381,12 @@ TASK_GO
     group_action_port_receive();
 </#if>
     leader_port_receive();
+<#if groupingPortList?size gt 0>
+    grouping_port_receive();
+</#if>
 }
 
-/////////////////////////////////////
+/////////////////////////////////////src/application/FakeBot_0_listen.cic
 // wrapup code
 /////////////////////////////////////
 

@@ -87,6 +87,19 @@ STATIC struct _${heartbeatPort.getVariableName()} {
 STATIC MULTICAST_PACKET packet_${heartbeatPort.getVariableName()} = {&${heartbeatPort.getVariableName()}.header, ${heartbeatPort.getVariableName()}.body};
 </#list>
 
+<#if groupingPortList?size gt 0>
+// GROUPING VARIABLE DEFINE
+#pragma pack(push, 1)
+STATIC struct _grouping {
+    GROUPING_PACKET_HEADER header;
+    semo_int32 robot_num;
+    SEMO_GROUPING_SHARED robot_info_list[${maxRobotNum}];
+    semo_uint8 body[${groupingLibPort.library.sharedDataSize*maxRobotNum}];
+} grouping = {{-1, THIS_ROBOT_ID, -1}, 0,};
+#pragma pack(pop)
+STATIC GROUPING_PACKET packet_grouping = {&grouping.header, &grouping.robot_num, grouping.robot_info_list, grouping.body};
+
+</#if>
 <#if channelPortMap?size gt 0>
 // CHANNEL_PORT_SECTION
 STATIC CHANNEL_PORT channel_port_list[${channelPortMap?size}] = {
@@ -131,11 +144,20 @@ STATIC LEADER_PORT leader_port_list[${leaderPortMap?size}] = {
     </#list>
 };
 
+<#if groupingPortList?size gt 0>
+// GROUP SERVICE PORT SECTION
+STATIC GROUPING_PORT grouping_port_list[${groupingPortList?size}] = {
+<#list groupingPortList as multicastPort>
+    {"${multicastPort.name}", -1, -1, l_${robotId}_grouping_avail_shared_data_report, l_${robotId}_grouping_get_shared_data_report, NULL, &grouping, &packet_grouping, ${groupingLibPort.library.sharedDataSize}, -1},
+</#list>
+};
+
+</#if>
 /////////////////////////////////////
 // init code
 /////////////////////////////////////
 <#if channelPortMap?size gt 0>
-STATIC void channel_port_init_() {
+STATIC void channel_port_init() {
     for (int i = 0 ; i<sizeof(channel_port_list)/sizeof(CHANNEL_PORT) ; i++)
     {
         UFPort_Initialize(THIS_TASK_ID, channel_port_list[i].in_port_name, &(channel_port_list[i].in_port_id));
@@ -145,7 +167,7 @@ STATIC void channel_port_init_() {
 
 </#if>
 <#if multicastPortMap?size gt 0>
-STATIC void multicast_port_init_() {
+STATIC void multicast_port_init() {
     for (int i = 0 ; i<sizeof(multicast_port_list)/sizeof(MULTICAST_PORT) ; i++)
     {
         UFPort_Initialize(THIS_TASK_ID, multicast_port_list[i].channel_port_name, &(multicast_port_list[i].channel_port_id));
@@ -155,7 +177,7 @@ STATIC void multicast_port_init_() {
 
 </#if>
 <#if sharedDataPortMap?size gt 0>
-STATIC void shared_data_port_init_() {
+STATIC void shared_data_port_init() {
     for (int i = 0 ; i<sizeof(shared_data_port_list)/sizeof(SHARED_DATA_PORT) ; i++)
     {
         UFMulticastPort_Initialize(THIS_TASK_ID, shared_data_port_list[i].multicast_port_name, &(shared_data_port_list[i].multicast_group_id), &(shared_data_port_list[i].multicast_port_id));
@@ -172,30 +194,41 @@ STATIC void group_action_port_init() {
 }
 
 </#if>
-STATIC void leader_port_init_() {
+STATIC void leader_port_init() {
     for (int i = 0 ; i < sizeof(leader_port_list)/sizeof(LEADER_PORT) ; i++)
     {
         UFMulticastPort_Initialize(THIS_TASK_ID, leader_port_list[i].robot_id_port_name, &(leader_port_list[i].robot_id_group_id), &(leader_port_list[i].robot_id_port_id));
         UFMulticastPort_Initialize(THIS_TASK_ID, leader_port_list[i].heartbeat_port_name, &(leader_port_list[i].heartbeat_group_id), &(leader_port_list[i].heartbeat_port_id));
     }
 }
+<#if groupingPortList?size gt 0>
+STATIC void grouping_port_init() {
+    for (int i = 0 ; i<sizeof(grouping_port_list)/sizeof(GROUPING_PORT) ; i++)
+    {
+        UFMulticastPort_Initialize(THIS_TASK_ID, grouping_port_list[i].multicast_port_name, &(grouping_port_list[i].multicast_group_id), &(grouping_port_list[i].multicast_port_id));
+    }
+}
 
+</#if>
 TASK_INIT
 {
 	SEMO_LOG_INFO("INIT");
 <#if channelPortMap?size gt 0>
-    channel_port_init_(); 
+    channel_port_init(); 
 </#if>
 <#if multicastPortMap?size gt 0>
-    multicast_port_init_();
+    multicast_port_init();
 </#if>
 <#if sharedDataPortMap?size gt 0>
-    shared_data_port_init_();
+    shared_data_port_init();
 </#if>
 <#if groupActionPortList?size gt 0>
     group_action_port_init();
 </#if>
-    leader_port_init_();
+    leader_port_init();
+<#if groupingPortList?size gt 0>
+    grouping_port_init();
+</#if>
 }
 
 /////////////////////////////////////
@@ -285,6 +318,21 @@ STATIC void leader_port_send() {
     }
 }
 
+<#if groupingPortList?size gt 0>
+STATIC void grouping_port_send() {
+    for (int i = 0 ; i<sizeof(grouping_port_list)/sizeof(GROUPING_PORT) ; i++)
+    {
+        if (grouping_port_list[i].lib_avail_func() == TRUE) 
+        {
+            int data_len;
+            grouping_port_list[i].lib_get_func(&grouping_port_list[i].packet->header->mode_id, grouping_port_list[i].packet->robot_info_list, grouping_port_list[i].packet->shared_robot_num, grouping_port_list[i].packet->data, grouping_port_list[i].size);
+            UFTimer_GetCurrentTime(THIS_TASK_ID, &(grouping_port_list[i].packet->header->time));
+            UFMulticastPort_WriteToBuffer(grouping_port_list[i].multicast_group_id, grouping_port_list[i].multicast_port_id, (unsigned char * ) grouping_port_list[i].buffer, sizeof(grouping), &data_len);
+        }
+    }
+}
+
+</#if>
 TASK_GO
 {
 <#if channelPortMap?size gt 0>
@@ -300,6 +348,9 @@ TASK_GO
     group_action_port_send();
 </#if>
     leader_port_send();
+<#if groupingPortList?size gt 0>
+    grouping_port_send();
+</#if>
 }
 
 /////////////////////////////////////

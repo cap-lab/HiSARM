@@ -170,6 +170,7 @@ void manage_event()
 
 void check_group_allocation_and_run_transition()
 {
+    check_group_selection_state();
     for(int i = 0 ; i < group_num ; i++)
     {
         if (get_group_state(group_list[i]) == TRUE)

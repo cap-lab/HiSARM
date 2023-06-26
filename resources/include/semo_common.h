@@ -14,6 +14,8 @@ extern "C"
     typedef unsigned short semo_uint16;
     typedef unsigned int semo_uint32;
     typedef unsigned long long semo_uint64;
+    typedef float semo_float;
+    typedef double semo_double;
 
     typedef enum _SEMO_DIRECTION
     {

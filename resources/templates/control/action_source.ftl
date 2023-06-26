@@ -68,7 +68,7 @@ void run_action_task(semo_int32 action_task_id)
         int run = TRUE;
         if (action->state == SEMO_STOP)
         {
-            SEMO_LOG_INFO("run action task id %d name %s", action_task_id, action->task_name);
+            SEMO_LOG_DEBUG("run action task id %d name %s", action_task_id, action->task_name);
         }
         for (int port_index = 0 ; port_index < action->input_list_size ; port_index++)
         {
@@ -104,7 +104,7 @@ void stop_action_task(semo_int32 action_task_id)
     {
         int dataLen = 0;
         ACTION_TASK *action = action_task_list + action_task_id;
-        SEMO_LOG_INFO("stop action task %d name %s", action_task_id, action->task_name);
+        SEMO_LOG_DEBUG("stop action task %d name %s", action_task_id, action->task_name);
         UFControl_StopTask(CONTROL_TASK_ID, action->task_name, FALSE);
         for (int port_index = 0 ; port_index < action->output_list_size ; port_index++)
         {
