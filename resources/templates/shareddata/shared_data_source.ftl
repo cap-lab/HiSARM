@@ -1,5 +1,5 @@
 typedef struct _${variableType.name} {
-    <#if variableType.type.getValue() == "enum">VARIABLE_${variableType.name}<#else>${variableType.type.value}</#if> buffer[${variableType.count}];
+    <#if variableType.type.getValue() == "enum">VARIABLE_TYPE_${variableType.name}<#else>${variableType.type.value}</#if> buffer[${variableType.count}];
     semo_int32 size;
 } SHARED_VARIABLE_${variableType.name};
 
