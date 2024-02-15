@@ -1,20 +1,17 @@
 #ifndef __${robotId}_EVENT_HEADER__
 #define __${robotId}_EVENT_HEADER__
 
-#include "semo_common.h"
+#include "semo_event.h"
+#include "semo_group.h"
 
 // EVENT DEFINE
-typedef enum _EVENT_ID {
+typedef enum _${robotId}_EVENT_ID {
 <#list eventList as event>
-    ID_EVENT_${event},
+    ID_EVENT_${robotId}_${event},
 </#list>
     ID_EVENT_LAST
-} EVENT_ID;
+} ${robotId}_EVENT_ID;
 
-extern semo_int8 event_list[${eventList?size}];
-extern semo_int8 event_occured;
-
-void event_list_init();
-void event_polling();
+void ${robotId}_event_init(EVENT_CLASS *event_class, GROUP_CLASS *group_class);
 
 #endif

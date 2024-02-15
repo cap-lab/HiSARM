@@ -1,19 +1,19 @@
 #ifndef __${robotId}_SERVICE_HEADER__
 #define __${robotId}_SERVICE_HEADER__
 
-#include "semo_common.h"
-#include "${robotId}_group.h"
+#include "semo_service.h"
+#include "semo_action.h"
+#include "semo_event.h"
+#include "semo_resource.h"
+#include "semo_timer.h"
 
-typedef enum _SERVICE_ID {
+typedef enum _${robotId}_SERVICE_ID {
 <#list serviceList as service>
-    ID_SERVICE_${service.serviceId},
+    ID_SERVICE_${robotId}_${service.serviceId},
 </#list>
-} SERVICE_ID;
+} ${robotId}_SERVICE_ID;
 
 // DECLARE EXTERN FUNCTION
-void service_init();
-void execute_service();
-void run_service(SERVICE_ID service_id, GROUP_ID group);
-void stop_service(SERVICE_ID service_id);
+void ${robotId}_service_init(SERVICE_CLASS* service, ACTION_CLASS* action, EVENT_CLASS* event, RESOURCE_CLASS* resource, TIMER_CLASS* timer);
 
 #endif

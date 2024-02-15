@@ -6,6 +6,11 @@
 #define THIS_ROBOT_ID (${robotId})
 #define THIS_ROBOT_NAME "${robotName}"
 #define THIS_ROBOT_TYPE "${robotType}"
-extern semo_int32 CONTROL_TASK_ID;
+#define CONTROL_TASK_ID (${controlTaskId})
+#define LISTEN_TASK_ID (${listenTaskId})
+#define REPORT_TASK_ID (${reportTaskId})
+#define SEMO_ROBOT_NUM (${robotNum})
+
+#define ROBOT_SPECIFIC(x) ${robotName}_##x
 
 #endif

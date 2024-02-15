@@ -15,8 +15,12 @@ from ssh_manager import SSHManager
 generated_dir_path="generated"
 
 ARDUINO_DIR = "/home/caplab/arduino-ide_2.0.1_Linux_64bit"
-PKG_CONFIG_DIR = "/home/caplab/cross_env/usr/local/lib/arm-linux-gnueabihf/pkgconfig:/home/caplab/cross_env/usr/lib/arm-linux-gnueabihf/pkgconfig:/home/caplab/cross_env/usr/share/pkgconfig"
-SYSROOT_DIR = "/home/caplab/cross_env"
+#PKG_CONFIG_DIR = "/home/caplab/cross_env/usr/local/lib/arm-linux-gnueabihf/pkgconfig:/home/caplab/cross_env/usr/lib/arm-linux-gnueabihf/pkgconfig:/home/caplab/cross_env/usr/share/pkgconfig"
+PKG_CONFIG_DIR = "/home/caplab/cross_env_aarch64/usr/lib/aarch64-linux-gnu/pkgconfig:/home/caplab/cross_env_aarch64/usr/lib/aarch64-linux-gnu/openmpi/lib/pkgconfig:/home/caplab/cross_env_aarch64/usr/lib/aarch64-linux-gnu/open-coarrays/openmpi/pkgconfig:/home/caplab/cross_env_aarch64/usr/lib/pkgconfig:/home/caplab/cross_env_aarch64/usr/share/pkgconfig"
+#SYSROOT_DIR = "/home/caplab/cross_env"
+SYSROOT_DIR = "/home/caplab/cross_env_aarch64"
+#COMPILER_TARGET = "arm-linux-gnueabihf"
+COMPILER_TARGET = "aarch64-linux-gnu"
 UPLOAD_TARGET_DIR = "~/workspace/uploaded_binary"
 TARGET_OS_BINARY_NAME = "proc_os"
 TARGET_NONOS_BINARY_NAME = "proc_nonos.bin"
@@ -57,19 +61,75 @@ def runCommand(command):
     if ret != 0:
         raise Exception("Command - " + command) 
 
-def buildOSTarget():
-    os.environ["PKG_CONFIG_LIBDIR"] = PKG_CONFIG_DIR
+
+def setBuildEnvironment(device_name, db_handle, yaml_info):
+    if "environment" in yaml_info and yaml_info['environment'] == "simulation":  # simulation
+        simulDevice_collection = db_handle['SimulationDevice']
+        simul_device = simulDevice_collection.find_one({"DeviceId": device_name}) 
+        archi_name = simul_device['Architecture']
+####################################
+    else: # real robot
+        robotImpl_collection = db_handle['RobotImpl']
+        robot_name = getMatchedRobotFromDirName(device_name, yaml_info['robotList'])
+        archi_name = device_name[len(robot_name)+1:]
+        #robot_impl = robotImpl_collection.find_one({"RobotId": robot_name})
+        #robot = robot_impl['RobotClass']
+        #robot['Architecture']['architectureList']
+    compile_option = db_handle['CompileOption'].find_one({"DeviceName": archi_name})
+    if bool(compile_option['CrossCompile']) is True:
+        #compile_option['CrossCompile']['EnvironmentVariable']
+        os.environ["PKG_CONFIG_LIBDIR"] =  ':'.join(compile_option['CrossCompile']['PkgConfigDir'])
+        os.environ["SYSROOT_DIR"] =  compile_option['CrossCompile']['SysRoot']
+        for env_item in compile_option['CrossCompile']['EnvironmentVariable']:
+            os.environ[env_item['name']] = os.environ[env_item['value']]
+    else:
+        os.environ["PKG_CONFIG_LIBDIR"] = ""
+        os.environ["SYSROOT_DIR"] =  ""
+
+    return compile_option
+
+def buildOSTarget(device_name, db_handle, yaml_info):
+    compile_option = setBuildEnvironment(device_name, db_handle, yaml_info)
+
+    include_list = compile_option['IncludePaths']
+    library_list = compile_option['LibraryPaths']
+    extra_cxxflags = compile_option['ExtraCXXFlags']
+    include_flags = " -I".join(include_list)
+    library_flags = " -L".join(library_list)
+    cxx_flags = " ".join(extra_cxxflags)
+    if len(include_flags) > 0:
+        include_flags = "-I" + include_flags
+    if len(library_flags) > 0:
+        library_flags = "-L" + library_flags
+
+    sysroot_dir = ""
+    if bool(compile_option['CrossCompile']) is True:
+        cross_compile_option = compile_option['CrossCompile']
+        if bool(cross_compile_option['SysRoot']):
+            sysroot_dir = "--sysroot=${SYSROOT_DIR}"
+        compiler_host = "--host=" + cross_compile_option['CompilerTarget']
+    else:
+        compiler_host = ""
+
+    full_cflags = "CFLAGS=\"-O2 -g " + sysroot_dir + " " + include_flags  +  "\""
+    full_cxxflags = "CXXFLAGS=\"-O2 -g " + sysroot_dir +  " " + include_flags + " " + cxx_flags + "\""
+    if len(library_flags) > 0:
+        full_ldflags = "LDFLAGS=\"" + library_flags + "\""
+    else:
+        full_ldflags = ""
+
     runCommand("chmod +x ./preinstall.sh")
     runCommand("./preinstall.sh")
-    runCommand("./configure CFLAGS=\"--sysroot=" + SYSROOT_DIR + " -O2 -g\"  CXXFLAGS=\"--sysroot=" + SYSROOT_DIR + " -O2\" --host=arm-linux-gnueabihf")
+    runCommand("./configure " + full_cflags + " " + full_cxxflags + " " + full_ldflags +  " " + compiler_host)
+       
+    #runCommand("./configure CFLAGS=\"--sysroot=${SYSROOT_DIR} -O2 -g -I${SYSROOT_DIR}/home/caplab/software/zmqRemoteApi/clients/cpp -I${SYSROOT_DIR}/home/caplab/software/zmqRemoteApi/clients/cpp/build/jsoncons/include\"  CXXFLAGS=\"--sysroot=${SYSROOT_DIR} -O2 -I${SYSROOT_DIR}/home/caplab/software/zmqRemoteApi/clients/cpp -I${SYSROOT_DIR}/home/caplab/software/zmqRemoteApi/clients/cpp/build/jsoncons/include --std=c++17\" LDFLAGS=\"-L${SYSROOT_DIR}/home/caplab/software/simZMQ/build -L${SYSROOT_DIR}/home/caplab/software/zmqRemoteApi/clients/cpp/build\" --host=" + COMPILER_TARGET)
     runCommand("make -j")
 
 def buildNonOSTarget():
-    os.environ["PKG_CONFIG_LIBDIR"] = ""
-    os.environ["ARDUINO_DIR"] = ARDUINO_DIR
+    setBuildEnvironment(device_name, db_handle, yaml_info)
     runCommand("make -j")
 
-def buildAllDevices(projectDirPath):
+def buildAllDevices(projectDirPath, yaml_info, db_handle):
     working_dir_path = os.getcwd()
     os.chdir(projectDirPath)
     for file_name in os.listdir("."):
@@ -78,9 +138,9 @@ def buildAllDevices(projectDirPath):
             target = checkBuildTarget()
             try:
                 if target == "OS":
-                    buildOSTarget()
+                    buildOSTarget(file_name, db_handle, yaml_info)
                 elif target == "NonOS":
-                    buildNonOSTarget()
+                    buildNonOSTarget(file_name, db_handle, yaml_info)
             except Exception as e:  
                 print("Build error on \"" + file_name + "\": ", e)
                 sys.exit(1)
@@ -110,27 +170,36 @@ def getMatchedRobotFromDirName(dirName, robotList):
             break
     return matched_name
 
-def getUploadTargetIP(robotName, robotImplCollection):
-    robot_data = robotImplCollection.find_one({"RobotId": robotName})
-    for robot_comm in robot_data['CommunicationInfo']:
-        if robot_comm['type'] == "EThernet/Wi-Fi":
-            ip_address = robot_comm['address']['ip']
-            break
 
-    return ip_address
+def getUploadTargetIPAndUserName(robotName, robotImplCollection):
+    robot_comm = robotImplCollection.find_one({"RobotId": robotName})
+    if robot_comm['UploadInfo']['type'] == "ssh":
+        ip_address = robot_comm['UploadInfo']['address']['ip']
+        user_name = robot_comm['UploadInfo']['address']['username']
+
+    return ip_address, user_name
+
+def getUploadSimulationIPAndUserName(simulationDeviceName, simulationDeviceCollection):
+    simul_comm = simulationDeviceCollection.find_one({"DeviceId": simulationDeviceName})
+    if simul_comm['UploadInfo']['type'] == "ssh":
+        ip_address = simul_comm['UploadInfo']['address']['ip']
+        user_name = simul_comm['UploadInfo']['address']['username']
+
+    return ip_address, user_name
+
 
 
 class BinaryUploader:
-    def __init__(self, dir_name, target, ip_address):
+    def __init__(self, dir_name, target, ip_address, user_name):
         self.dir_name = dir_name
         self.target = target
         self.ip_address = ip_address
+        self.user_name = user_name
 
-
-def uploadSingleRobotBinary(binary_uploader):
-    print("upload binary start: " + binary_uploader.dir_name)
+def uploadSingleBinary(binary_uploader):
+    print("upload binary start: " + binary_uploader.dir_name + "," + binary_uploader.ip_address)
     ssh_manager = SSHManager()
-    ssh_manager.create_ssh_client(binary_uploader.ip_address)
+    ssh_manager.create_ssh_client(binary_uploader.ip_address, binary_uploader.user_name)
     #ssh_manager.create_ssh_client("192.168.50.5")
     out = ssh_manager.send_command("mkdir " + UPLOAD_TARGET_DIR) 
     if binary_uploader.target == "OS":
@@ -142,28 +211,53 @@ def uploadSingleRobotBinary(binary_uploader):
     print("upload binary end: " + binary_uploader.dir_name)
    
 
-
-def uploadRobotBinary(projectDirPath, dbHandle, robotList):
+def makeBinaryUploaderFromSimulationDeviceList(dbHandle):
+    simulDevice_collection = dbHandle['SimulationDevice']
     uploaded_robot_addr_list = []
-    working_dir_path = os.getcwd()
+    binary_uploader_list = []
+    for file_name in os.listdir("."):
+        if os.path.isdir(file_name): 
+            os.chdir(file_name)
+            target = checkBuildTarget()
+            # file_name is a simulation device name
+            ip_address, user_name = getUploadSimulationIPAndUserName(file_name, simulDevice_collection)
+            binary_uploader = BinaryUploader(file_name, target, ip_address, user_name)
+            binary_uploader_list.append(binary_uploader)
+            if ip_address not in uploaded_robot_addr_list:
+                uploaded_robot_addr_list.append(ip_address)
+            os.chdir("..")
+    return binary_uploader_list, uploaded_robot_addr_list
+
+
+def makeBinaryUploaderFromRobotList(dbHandle, robotList):
     robotImpl_collection = dbHandle['RobotImpl']
-    os.chdir(projectDirPath)
+    uploaded_robot_addr_list = []
     binary_uploader_list = []
     for file_name in os.listdir("."):
         if os.path.isdir(file_name): 
             os.chdir(file_name)
             robot_name = getMatchedRobotFromDirName(file_name, robotList)
             target = checkBuildTarget()
-            ip_address = getUploadTargetIP(robot_name, robotImpl_collection)
-            binary_uploader = BinaryUploader(file_name, target, ip_address)
+            ip_address, user_name = getUploadTargetIPAndUserName(robot_name, robotImpl_collection)
+            binary_uploader = BinaryUploader(file_name, target, ip_address, user_name)
             binary_uploader_list.append(binary_uploader)
             if ip_address not in uploaded_robot_addr_list:
                 uploaded_robot_addr_list.append(ip_address)
             os.chdir("..")
+    return binary_uploader_list, uploaded_robot_addr_list
+
+
+def uploadDeploymentBinary(projectDirPath, dbHandle, uploadIdList, isSimulation):
+    working_dir_path = os.getcwd()
+    os.chdir(projectDirPath)
+    if isSimulation is True:
+        binary_uploader_list, uploaded_robot_addr_list = makeBinaryUploaderFromSimulationDeviceList(dbHandle)
+    else:
+        binary_uploader_list, uploaded_robot_addr_list = makeBinaryUploaderFromRobotList(dbHandle, uploadIdList)
 
     thread_list = []
     for uploader in binary_uploader_list:
-        thread = Thread(target=uploadSingleRobotBinary, args=(uploader,))
+        thread = Thread(target=uploadSingleBinary, args=(uploader,))
         thread_list.append(thread)
 
     for thread in thread_list:
@@ -190,7 +284,7 @@ project_name = sys.argv[2].rstrip('.bdl')
 print("arguments: " + sys.argv[1] + "," + sys.argv[2])
 
 
-# remove old roboto address file
+# remove old robot address file
 if os.path.exists(ROBOT_ADDDR_FILE_NAME):
     os.remove(ROBOT_ADDDR_FILE_NAME)
 
@@ -206,22 +300,29 @@ if process.returncode != 0:
     sys.exit(1)
 print ("### BIO SW Code generation is done! ######")
 
-
+yaml_info = getYamlConfig(sys.argv[1])
+db_handle = getMongoDB(yaml_info)
 
 print ("### BIO SW Build is started! #############")
 target_project = getLatestDirectory(generated_dir_path, project_name)
 
 project_dir_path = os.path.join(generated_dir_path, target_project)
 
-buildAllDevices(project_dir_path)
+buildAllDevices(project_dir_path, yaml_info, db_handle)
 print ("### BIO SW Build is done! ################")
 
 
 print ("### BIO SW Upload is started! ############")
-yaml_info = getYamlConfig(sys.argv[1])
-db_handle = getMongoDB(yaml_info)
 
-robot_addr_list = uploadRobotBinary(project_dir_path, db_handle, yaml_info['robotList'])
+if "environment" in yaml_info and yaml_info['environment'] == "simulation":
+    upload_list = [] # simulation list is obtained by the file name, not from configuration
+    isSimulation = True
+else:
+    upload_list = yaml_info['robotList']
+    isSimulation = False
+
+robot_addr_list = uploadDeploymentBinary(project_dir_path, db_handle, upload_list, isSimulation)
+
 writeRobotIpLists(robot_addr_list)
 print ("### BIO SW Upload is done! ###############")
 

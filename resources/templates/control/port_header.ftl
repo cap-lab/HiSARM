@@ -6,24 +6,23 @@
 
 <#list actionList as action>
     <#if action.inputList?size gt 0>
-extern PORT input_port_of_${action.actionTask.name}[${action.inputList?size}];
+extern PORT ${robotId}_input_port_of_${action.actionTask.name}[${action.inputList?size}];
     </#if>
     <#if action.outputList?size gt 0>
-extern PORT output_port_of_${action.actionTask.name}[${action.outputList?size}];
+extern PORT ${robotId}_output_port_of_${action.actionTask.name}[${action.outputList?size}];
     </#if>
     <#if action.actionTask.actionImpl.actionType.isGroupAction()>
-extern PORT group_port_of_${action.actionTask.name};
+extern PORT ${robotId}_group_port_of_${action.actionTask.name};
     </#if>
 </#list>
 
 <#list commStatementList as commStatement>
-extern COMM_PORT comm_port_of_${commStatement.statementId}[${commStatement.comm.portList?size}];
-extern semo_int32 comm_port_of_${commStatement.statementId}_size;
+extern COMM_PORT ${robotId}_comm_port_of_${commStatement.statementId}_${commStatement.statementId};
 </#list>
 
 <#list throwStatementList as throwStatement>
     <#if throwStatement.statement.statement.isBroadcast() == true>
-extern COMM_PORT throw_out_port_of_${throwStatement.statementId};
+extern COMM_PORT ${robotId}_throw_out_port_of_${throwStatement.service.serviceId}_${throwStatement.statementId};
     </#if>
 </#list>
 
@@ -36,14 +35,13 @@ extern COMM_PORT throw_out_port_of_${throwStatement.statementId};
         </#if>
     </#if>
 </#list>
-extern COMM_PORT throw_in_port_list[${thInPortList?size}];
-extern semo_int32 throw_in_port_list_size;
+extern COMM_PORT ${robotId}_throw_in_port_list[${thInPortList?size}];
+extern semo_int32 ${robotId}_throw_in_port_list_size;
 
-extern PORT port_of_leader;
+extern PORT ${robotId}_port_of_leader;
 
-extern PORT port_of_grouping_mode;
-extern PORT port_of_grouping_result;
+extern PORT ${robotId}_port_of_grouping_mode;
+extern PORT ${robotId}_port_of_grouping_result;
 
-void port_init();
-COMM_PORT* get_team_port(COMM_PORT* port_list, semo_int32 port_list_size, semo_int32 team_id);
+void ${robotId}_port_init();
 #endif

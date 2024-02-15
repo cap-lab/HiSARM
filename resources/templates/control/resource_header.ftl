@@ -1,22 +1,15 @@
 #ifndef __${robotId}_RESOURCE_HEADER__
 #define __${robotId}_RESOURCE_HEADER__
 
-#include "semo_common.h"
+#include "semo_resource.h"
 
-typedef enum _RESOURCE_ID {
+typedef enum _${robotId}_RESOURCE_ID {
 <#list resourceList as resource>
-    ID_RESOURCE_${resource.getResourceId()},
+    ID_RESOURCE_${robotId}_${resource.getResourceId()},
 </#list>
-    ID_RESOURCE_LAST
-} RESOURCE_ID;
+    ID_RESOURCE_${robotId}_LAST
+} ${robotId}_RESOURCE_ID;
 
-typedef struct _RESOURCE {
-    RESOURCE_ID resource_id;
-    semo_int32 reference_count;
-    semo_int32 *action_id_list;
-    semo_int8 conflict;
-} RESOURCE;
-
-extern RESOURCE resource_list[${resourceList?size}];
+void ${robotId}_resource_init(RESOURCE_CLASS *resource_class);
 
 #endif

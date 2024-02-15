@@ -5,26 +5,28 @@ typedef struct _SEMO_GROUPING_DATA {
     semo_int32 candidate_group_list_length;
 } SEMO_GROUPING_DATA;
 
-static SEMO_GROUPING_SHARED shared_robot_list[${maxRobotNum}];
-static semo_uint8 shared_data_buffer[${maxRobotNum*sharedDataSize}];
+static semo_int32 shared_robot_list[${maxRobotNum}];
 static semo_int32 shared_robot_num;
+static semo_uint8 shared_data_buffer[${maxRobotNum*sharedDataSize}];
+static semo_int32 shared_data_size = ${sharedDataSize};
+static semo_int64 updated_time_list[${maxRobotNum}];
 static HThreadMutex shared_data_mutex;
 static semo_int8 shared_data_refreshed;
 
 static SEMO_GROUPING_DATA *current_mode_grouping_data;
 
 <#list groupingModeSet as mode>
-SEMO_GROUP candidate_group_list_${mode}[${groupingLib.getGroupList(mode)?size}] = {
+static SEMO_GROUP candidate_group_list_${mode}[${groupingLib.getGroupList(mode)?size}] = {
     <#list groupingLib.getGroupList(mode) as group>
-    {ID_GROUP_${groupingLib.makeGroupId(mode, group.getGroup().getName())}, ${group.getGroup().getMin()}},
+    {ID_GROUP_${robotId}_${groupingLib.makeGroupId(mode, group.getGroup().getName())}, ${group.getGroup().getMin()}},
     </#list>
 };
 
 </#list>
-SEMO_GROUPING_DATA grouping_data[${groupingModeSet?size}] = {
+static SEMO_GROUPING_DATA grouping_data[${groupingModeSet?size}] = {
 <#list groupingModeSet as mode>
     {
-        ID_MODE_${mode}, // semo_int32 mode_id
+        ID_MODE_${robotId}_${mode}, // semo_int32 mode_id
         SEMO_GROUP_SELECTION_STOP, // SEMO_GROUP_SELECTION_STATE state
         candidate_group_list_${mode}, // SEMO_GROUP *candidate_group_list
         ${groupingLib.getGroupList(mode)?size}, // semo_int32 candidate_group_list_length
@@ -42,23 +44,13 @@ LIBFUNC(void, wrapup, void) {
     UCThreadMutex_Destroy(&shared_data_mutex);
 }
 
-static SEMO_GROUPING_SHARED* find_shared_robot_info(semo_int32 robot) {
+static int get_grouping_robot_index(semo_int32 robot_id) {
     for (int i = 0 ; i < shared_robot_num ; i++) {
-        if (shared_robot_list[i].robot_id == robot) {
-            return &shared_robot_list[i];
+        if (shared_robot_list[i] == robot_id) {
+            return i;
         }
     }
-    return (SEMO_GROUPING_SHARED*) NULL;
-}
-
-static semo_uint8* find_shared_data_for_target_robot(semo_int32 robot, semo_int32 length) {
-    for (int i = 0 ; i < shared_robot_num ; i++) {
-        if (shared_robot_list[i].robot_id == robot) {
-            return shared_data_buffer + i*length;
-        }
-    }
-    SEMO_LOG_ERROR("Not Found Robot Data (robot %d)", robot);
-    return (semo_uint8*) NULL;
+    return -1;
 }
 
 static SEMO_GROUPING_DATA* find_data_for_target_mode(semo_int32 mode) {
@@ -93,8 +85,8 @@ static void parameter_wrapup() {
 static void parameter_init(SEMO_GROUPING_DATA *mode_group) {
     UCThreadMutex_Lock(shared_data_mutex);
     current_mode_grouping_data = mode_group;
-    shared_robot_list[0].robot_id = THIS_ROBOT_ID;
-    shared_robot_list[0].count = 0;
+    shared_robot_list[0] = THIS_ROBOT_ID;
+    updated_time_list[0] = 0;
     shared_robot_num = 1;
     shared_data_refreshed = FALSE;
     UCThreadMutex_Unlock(shared_data_mutex);
@@ -128,7 +120,7 @@ LIBFUNC(void, get_group_info, semo_int32 group_id, SEMO_GROUP *group) {
     memcpy(group, foundGroup, sizeof(SEMO_GROUP));
 }
 
-LIBFUNC(void, get_shared_data_grouping, semo_int32 index, semo_uint8 *data, semo_int32 length) {
+LIBFUNC(void, get_shared_data_grouping, semo_int32 index, semo_uint8 *data) {
     if (current_mode_grouping_data == (SEMO_GROUPING_DATA*) NULL) {
         SEMO_LOG_ERROR("Group Selection has not Initialized");
         return;
@@ -138,19 +130,17 @@ LIBFUNC(void, get_shared_data_grouping, semo_int32 index, semo_uint8 *data, semo
         return;
     }
     UCThreadMutex_Lock(shared_data_mutex);
-    memcpy(data, shared_data_buffer + length*index, length);
+    memcpy(data, shared_data_buffer + shared_data_size*index, shared_data_size);
     UCThreadMutex_Unlock(shared_data_mutex);
 }
 
-LIBFUNC(void, get_shared_data_report, semo_int32 *mode, SEMO_GROUPING_SHARED *robot_info_list, semo_int32 *robot_num, semo_uint8 *data, semo_int32 length) {
+LIBFUNC(void, get_shared_data_report, semo_int32 *mode, semo_uint8 *data) {
     if (current_mode_grouping_data == (SEMO_GROUPING_DATA*) NULL) {
         return;
     }
     UCThreadMutex_Lock(shared_data_mutex);
     *mode = current_mode_grouping_data->mode_id;
-    *robot_num = shared_robot_num;
-    memcpy(robot_info_list, shared_robot_list, shared_robot_num*sizeof(SEMO_GROUPING_SHARED));
-    memcpy(data, shared_data_buffer, shared_robot_num*length);
+    memcpy(data, shared_data_buffer, shared_data_size);
     shared_data_refreshed = FALSE;
     UCThreadMutex_Unlock(shared_data_mutex);
     if (current_mode_grouping_data->state == SEMO_GROUP_SELECTION_WRAPUP) {
@@ -192,19 +182,18 @@ LIBFUNC(SEMO_GROUP_SELECTION_STATE, get_grouping_state, semo_int32 mode) {
     return current_mode_grouping_data->state; 
 }
 
-LIBFUNC(void, set_shared_data_grouping, semo_uint8 *data, semo_int32 length) {
+LIBFUNC(void, set_shared_data_grouping, semo_uint8 *data) {
     if (current_mode_grouping_data == (SEMO_GROUPING_DATA*) NULL) {
         SEMO_LOG_ERROR("Group Selection has not Initialized");
         return;
     }
     UCThreadMutex_Lock(shared_data_mutex);
-    shared_robot_list[0].count += 1;
     shared_data_refreshed = TRUE;
-    memcpy(shared_data_buffer, data, length);
+    memcpy(shared_data_buffer, data, shared_data_size);
     UCThreadMutex_Unlock(shared_data_mutex);
 }
 
-LIBFUNC(void, set_shared_data_listen, semo_int32 mode_id, SEMO_GROUPING_SHARED *robot_info_list, semo_int32 robot_num, semo_uint8 *data, semo_int32 length) {
+LIBFUNC(void, set_shared_data_listen, semo_int32 mode_id, semo_int32 robot_id, semo_int64 updated_time, semo_uint8 *data) {
     if (current_mode_grouping_data == (SEMO_GROUPING_DATA*) NULL) {
         return;
     }
@@ -212,20 +201,16 @@ LIBFUNC(void, set_shared_data_listen, semo_int32 mode_id, SEMO_GROUPING_SHARED *
     if (current_mode_grouping_data->mode_id != mode_id) {
         return;
     }
-
+    semo_int32 robotIndex = get_grouping_robot_index(robot_id);
     UCThreadMutex_Lock(shared_data_mutex);
-    for (int i = 0 ; i < robot_num ; i++) {
-        SEMO_GROUPING_SHARED *robot_info = find_shared_robot_info(robot_info_list[i].robot_id);
-        if (robot_info == (SEMO_GROUPING_SHARED*) NULL) {
-            memcpy(shared_data_buffer + length*shared_robot_num, data+i*length, length);
-            shared_robot_list[shared_robot_num].robot_id = robot_info_list[i].robot_id;
-            shared_robot_list[shared_robot_num].count = robot_info_list[i].count;
-            shared_robot_num++;
-        } else if (robot_info->count < robot_info_list[i].count) {
-            semo_uint8 *shared_data = find_shared_data_for_target_robot(robot_info_list[i].robot_id, length);
-            robot_info->count = robot_info_list[i].count;
-            memcpy(shared_data, data+i*length, length);
-        }
+    if (robotIndex < 0) {
+        memcpy(shared_data_buffer + shared_data_size*shared_robot_num, data, shared_data_size);
+        shared_robot_list[shared_robot_num] = robot_id;
+        updated_time_list[shared_robot_num] = updated_time;
+        shared_robot_num++;
+    } else if (updated_time_list[robotIndex] < updated_time) {
+        memcpy(shared_data_buffer + shared_data_size*robotIndex, data, shared_data_size);
+        updated_time_list[robotIndex] = updated_time;
     }
     UCThreadMutex_Unlock(shared_data_mutex);
 }

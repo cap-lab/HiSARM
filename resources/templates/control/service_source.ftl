@@ -1,4 +1,5 @@
-<#import "/control/statement_macro.ftl" as statement_macro>
+#include "semo_service.h"
+#include "semo_logger.h"
 #include "${robotId}_common.h"
 #include "${robotId}_service.h"
 #include "${robotId}_action.h"
@@ -6,165 +7,184 @@
 #include "${robotId}_event.h"
 #include "${robotId}_variable.h"
 #include "${robotId}_timer.h"
-#include "semo_logger.h"
-#include "UFControl.h"
-
-typedef void (*SERVICE_EXECUTION_FUNC)(int service_index);
-
-typedef struct _ACTION_MAP {
-    ACTION_TYPE_ID action_type_id;
-    semo_int32 action_task_list_size;
-    ACTION_TASK_ID *action_task_list;
-} ACTION_MAP;
-
-typedef struct _SERVICE {
-    SERVICE_ID service_id;
-    SEMO_STATE state;
-    semo_int32 current_statement_id;
-    semo_int32 action_list_size;
-    ACTION_MAP *action_list;
-    SERVICE_EXECUTION_FUNC execution_func;
-    GROUP_ID group;
-} SERVICE;
-
-// DECLARE SERVICE EXECUTION FUNCTION
-<#list serviceList as service>
-static void execute_service_${service.serviceId}();
-</#list>
 
 // DEFINE ACTION TASK LIST FOR EACH SERVICE ACTION TYPE
 <#list serviceList as service>
     <#list service.getActionMap() as actionType, actionList>
-static ACTION_TASK_ID action_task_list_${service.serviceId}_${actionType.action.name}[] = {
+static semo_int32 ${robotId}_action_task_list_${service.serviceId}_${actionType.action.name}[] = {
         <#list actionList as action>
-    ID_ACTION_TASK_${action.actionTask.name},
+    ID_ACTION_TASK_${robotId}_${action.actionTask.name},
         </#list>
 };
     </#list>
 </#list>
 
-
 // DEFINE SERVICE ACTION LIST
 <#list serviceList as service>
     <#if service.getActionMap()?size gt 0>
-static ACTION_MAP action_list_of_${service.serviceId}[${service.getActionMap()?size}] = {
-    <#list service.getActionMap() as actionType, actionTaksList>
-    {ID_ACTION_TYPE_${actionType.action.name}, ${actionTaksList?size}, action_task_list_${service.serviceId}_${actionType.action.name}},
-    </#list>
+static ACTION_MAP ${robotId}_action_list_of_${service.serviceId}[${service.getActionMap()?size}] = {
+        <#list service.getActionMap() as actionType, actionTaksList>
+    {
+        ID_ACTION_TYPE_${robotId}_${actionType.action.name}, // semo_int32 action_type_id
+        ${actionTaksList?size}, // semo_int32 action_task_list_size
+        ${robotId}_action_task_list_${service.serviceId}_${actionType.action.name} // semo_int32 *action_task_list
+    },
+        </#list>
 };
     </#if>
 </#list>
 
-// DEFINE SERVICE
-static SERVICE service_list[${serviceList?size}] = {
+// STATEMENT ID DEFINE
 <#list serviceList as service>
-    {ID_SERVICE_${service.serviceId}, SEMO_STOP, 0, ${service.getActionList()?size}, 
-    <#if service.getActionMap()?size gt 0>action_list_of_${service.serviceId}<#else>NULL</#if>, execute_service_${service.serviceId}, -1},
+typedef enum _${robotId}_STATEMENT_${service.serviceId} {
+    <#list service.statementList as statement>
+    ID_STATEMENT_${robotId}_${service.serviceId}_${statement.statementId},
+    </#list>
+} ${robotId}_STATEMENT_${service.serviceId};
+</#list>
+
+// SERVICE STATEMENT INFO
+<#list serviceList as service>
+    <#list service.statementList as statement>
+        <#switch statement.statement.statement.getStatementType().getValue()>
+            <#case "action">
+static STATEMENT_ACTION_INFO ${robotId}_statement_info_${service.serviceId}_${statement.statementId} = {
+    ID_ACTION_TYPE_${robotId}_${statement.statement.statement.actionName} // semo_int32 action_type_id
+};
+                <#break>
+            <#case "receive">
+            <#case "subscribe">
+            <#case "send">
+            <#case "publish">
+static STATEMENT_COMMUNICATION_INFO ${robotId}_statement_info_${service.serviceId}_${statement.statementId} = {
+    &${robotId}_comm_port_of_${statement.statementId}_${statement.statementId} // COMM_PORT *port
+};
+                <#break>
+            <#case "if">
+            <#case "loop">
+            <#case "repeat">
+                <#if statement.condition??>
+static STATEMENT_CONDITION_INFO ${robotId}_statement_info_${service.serviceId}_${statement.statementId} = {
+    <#if statement.condition.leftVariable??>
+    &${robotId}_variable_${statement.condition.leftVariable.id}, // VARIABLE *left_variable
+    &${robotId}_variable_${statement.condition.rightVariable.id}, // VARIABLE *right_variable
+    <#else>
+    NULL, // VARIABLE *left_variable
+    NULL, // VARIABLE *right_variable
+    </#if>
+    <#if statement.condition.period??>
+    TRUE, // semo_int8 has_timer
+    ${statement.condition.period.getConvertedTime()}, // semo_int32 timer_time
+    "${statement.condition.period.getConvertedTimeUnit().getValue()}" // char* timer_unit
+    <#else>
+    FALSE, // semo_int8 has_timer
+    -1, // semo_int32 timer_time
+    NULL // char* timer_unit
+    </#if>
+};
+                </#if>
+                <#break>
+            <#case "throw">
+static STATEMENT_THROW_INFO ${robotId}_statement_info_${service.serviceId}_${statement.statementId} = {
+    ID_EVENT_${robotId}_${statement.statement.statement.event.name}, // semo_int32 event_id
+    <#if statement.statement.statement.isBroadcast() == true>TRUE<#else>FALSE</#if>, // semo_int8 is_broadcast
+    <#if statement.statement.statement.isBroadcast() == true>&${robotId}_throw_out_port_of_${service.serviceId}_${statement.statementId}<#else>NULL</#if> // COMM_PORT *port
+};
+                <#break>
+        </#switch>
+    </#list>
+</#list>
+
+// STATEMENT LIST
+<#list serviceList as service>
+    <#list service.statementList as statement>
+static STATEMENT ${robotId}_statement_${service.serviceId}_${statement.statementId} = {
+    ID_STATEMENT_${robotId}_${service.serviceId}_${statement.statementId}, // semo_int32 statement_id
+        <#switch statement.statement.statement.getStatementType().getValue()>
+            <#case "action">
+    STATEMENT_TYPE_ACTION, // STATEMENT_TYPE statement_type
+    &${robotId}_statement_info_${service.serviceId}_${statement.statementId}, // void *statement_info
+    execute_action // SERVICE_STATEMENT_EXECUTION_FUNC execution_func
+                <#break>
+            <#case "receive">
+            <#case "subscribe">
+    STATEMENT_TYPE_RECEIVE, // STATEMENT_TYPE statement_type
+    &${robotId}_statement_info_${service.serviceId}_${statement.statementId}, // void *statement_info
+    execute_receive // SERVICE_STATEMENT_EXECUTION_FUNC execution_func
+                <#break>
+            <#case "send">
+            <#case "publish">
+    STATEMENT_TYPE_SEND, // STATEMENT_TYPE statement_type
+    &${robotId}_statement_info_${service.serviceId}_${statement.statementId}, // void *statement_info
+    execute_send // SERVICE_STATEMENT_EXECUTION_FUNC execution_func
+                <#break>
+            <#case "if">
+            <#case "loop">
+            <#case "repeat">
+    STATEMENT_TYPE_IF, // STATEMENT_TYPE statement_type
+    <#if statement.condition??>&${robotId}_statement_info_${service.serviceId}_${statement.statementId}<#else>NULL</#if>, // void *statement_info
+    execute_if // SERVICE_STATEMENT_EXECUTION_FUNC execution_func
+                <#break>
+            <#case "throw">
+    STATEMENT_TYPE_THROW, // STATEMENT_TYPE statement_type
+    &${robotId}_statement_info_${service.serviceId}_${statement.statementId}, // void *statement_info
+    execute_throw // SERVICE_STATEMENT_EXECUTION_FUNC execution_func
+                <#break>
+            <#default>
+    STATEMENT_TYPE_NONE, // STATEMENT_TYPE statement_type
+    NULL, // void *statement_info
+    NULL // SERVICE_STATEMENT_EXECUTION_FUNC execution_func
+            </#switch>
+};
+    </#list>
+</#list>
+
+// SERVICE STATEMENT TRANSITION LIST
+<#list serviceList as service>
+SERVICE_STATEMENT_TRANSITION ${robotId}_service_statement_transition_list_${service.serviceId}[] = {
+    <#list service.statementList as statement>
+    {
+        &${robotId}_statement_${service.serviceId}_${statement.statementId}, // STATEMENT *statement
+        <#if statement.getNextStatement(service.getStatementList(), "TRUE")??>
+        ID_STATEMENT_${robotId}_${service.serviceId}_${statement.getNextStatement(service.getStatementList(), "TRUE").getStatementId()}, // semo_int32 next_true_statement_id
+        <#else>
+        -1, // semo_int32 next_true_statement_id
+        </#if>
+        <#if statement.getNextStatement(service.getStatementList(), "FALSE")??>
+        ID_STATEMENT_${robotId}_${service.serviceId}_${statement.getNextStatement(service.getStatementList(), "FALSE").getStatementId()} // semo_int32 next_false_statement_id
+        <#else>
+        -1 // semo_int32 next_false_statement_id
+        </#if>
+    },
+    </#list>
+};
+</#list>
+
+
+
+// DEFINE SERVICE
+static SERVICE ${robotId}_service_list[${serviceList?size}] = {
+<#list serviceList as service>
+    {
+        ID_SERVICE_${robotId}_${service.serviceId}, // semo_int32 service_id
+        SEMO_STOP, // SEMO_STATE state
+         ${service.getActionList()?size}, // semo_int32 action_list_size
+        <#if service.getActionMap()?size gt 0>${robotId}_action_list_of_${service.serviceId}<#else>NULL</#if>, // ACTION_MAP *action_list
+        0, // semo_int32 current_statement_id
+        ${robotId}_service_statement_transition_list_${service.serviceId}, // STATE_TRANSITION *statement_transition_list
+        -1 // semo_int32 group
+    },
 </#list>
 };
 
-// SERVICE STATE DEFINE
-<#list serviceList as service>
-typedef enum _SERVICE_${service.serviceId} {
-	<#list service.statementList as statement>
-    ID_STATEMENT_${statement.statementId},
-	</#list> 
-} SERVICE_${service.serviceId};
-</#list>
-
-void stop_service(SERVICE_ID service_id)
+void ${robotId}_service_init(SERVICE_CLASS* service, ACTION_CLASS* action, EVENT_CLASS* event, RESOURCE_CLASS* resource, TIMER_CLASS* timer)
 {
-    SEMO_LOG_INFO("stop service %d", service_id);
-    service_list[service_id].state = SEMO_STOP;
-    for (int i = 0 ; i < service_list[service_id].action_list_size ; i++)
-    {
-        for (int j = 0 ; j < service_list[service_id].action_list[i].action_task_list_size ; j++)
-        {
-            semo_int32 action_task_id = service_list[service_id].action_list[i].action_task_list[j];
-            if (action_task_list[action_task_id].state == SEMO_RUN)
-            {
-                stop_action_task(action_task_id);
-            }
-        }
-    }
-    remove_all_service_timer(service_id);
-}
-
-void run_service(SERVICE_ID service_id, GROUP_ID group)
-{
-    SEMO_LOG_INFO("run service %d", service_id);
-    service_list[service_id].state = SEMO_RUN;
-    service_list[service_id].current_statement_id = 0;
-    service_list[service_id].group = group;
-}
-
-void service_init() {
     SEMO_LOG_INFO("service init");
-    for(int i = 0 ; i < ${serviceList?size} ; i++)
-    {
-        service_list[i].state = SEMO_STOP;
-        service_list[i].current_statement_id = 0;
-    }
+    service->service_list = ${robotId}_service_list;
+    service->service_list_size = ${serviceList?size};
+    service->action_class = action;
+    service->event_class = event;
+    service->resource_class = resource;
+    service->timer_class = timer;
+    service_init(service);
 }
-
-void execute_service() 
-{
-    for(int i = 0 ; i < ${serviceList?size} ; i++)
-    {
-        if (service_list[i].state == SEMO_RUN)
-        {
-            service_list[i].execution_func(i);
-        }
-    }
-}
-
-static ACTION_MAP* get_action_map(SERVICE *service, ACTION_TYPE_ID action_type_id)
-{
-    for (int i = 0 ; i < service->action_list_size ; i++)
-    {
-        if (service->action_list[i].action_type_id == action_type_id)
-        {
-            return &service->action_list[i];
-        }
-    }
-    return NULL;
-}
-
-<#list serviceList as service>
-static void execute_service_${service.serviceId}(int service_index) {
-	switch (service_list[ID_SERVICE_${service.serviceId}].current_statement_id)
-	{
-	<#list service.statementList as statement>
-        case ID_STATEMENT_${statement.statementId}: 
-        {
-        <#switch statement.statement.statement.getStatementType().getValue()>
-        <#case "action">
-            <@statement_macro.ACTION statement service/>
-            <#break>
-        <#case "receive">
-        <#case "subscribe">
-            <@statement_macro.RECEIVE statement service/>
-            <#break>
-        <#case "send">
-        <#case "publish">
-            <@statement_macro.SEND statement service/>
-            <#break>
-        <#case "if">
-        <#case "loop">
-        <#case "repeat">
-            <@statement_macro.IF statement service/>
-            <#break>
-        <#case "throw">
-            <@statement_macro.THROW statement service/>
-            <#break>
-        </#switch>
-
-			break;
-		}
-	</#list>
-	}
-_EXIT:
-    return;
-}
-
-</#list>

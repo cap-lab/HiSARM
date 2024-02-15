@@ -5,20 +5,20 @@
 
 <#list variableTypeList as variableType>
     <#if variableType.variableType.type.getValue() == "enum">
-typedef enum _VARIABLE_TYPE_${variableType.variableType.name} {
+typedef enum _${robotId}_VARIABLE_TYPE_${variableType.variableType.name} {
         <#list variableType.variableType.candidate.candidates as candidate>
-        SEMO_ENUM_${candidate},
+        SEMO_ENUM_${robotId}_${candidate},
         </#list>
-} VARIABLE_TYPE_${variableType.variableType.name};
+} ${robotId}_VARIABLE_TYPE_${variableType.variableType.name};
     </#if>
 </#list>
 
 <#list variableList as variable>
-extern VARIABLE variable_${variable.id};
+extern VARIABLE ${robotId}_variable_${variable.id};
 </#list>
-extern VARIABLE variable_leader;
-extern VARIABLE variable_group;
-extern VARIABLE variable_grouping_mode;
-extern VARIABLE variable_grouping_result;
+extern VARIABLE ${robotId}_variable_leader;
+extern VARIABLE ${robotId}_variable_group;
+extern VARIABLE ${robotId}_variable_grouping_mode;
+extern VARIABLE ${robotId}_variable_grouping_result;
 
 #endif

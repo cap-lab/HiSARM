@@ -9,42 +9,61 @@
 
 <#list actionList as action>
     <#if action.inputList?size gt 0 >
-PORT input_port_of_${action.actionTask.name}[${action.inputList?size}] = {
+PORT ${robotId}_input_port_of_${action.actionTask.name}[${action.inputList?size}] = {
         <#list action.inputList as input>
-    {"${input.port.name}", -1, &variable_${input.variable.id}},
+    {
+        "${input.port.name}", // char *port_name 
+        -1, // int port_id
+        &${robotId}_variable_${input.variable.id} // void *variable
+    },
         </#list>
 };
     </#if>
     <#if action.outputList?size gt 0 >
-PORT output_port_of_${action.actionTask.name}[${action.outputList?size}] = {
+PORT ${robotId}_output_port_of_${action.actionTask.name}[${action.outputList?size}] = {
         <#list action.outputList as output>
-    {"${output.port.name}", -1, &variable_${output.variable.id}},
+    {
+        "${output.port.name}", // char *port_name
+        -1, // int port_id
+        &${robotId}_variable_${output.variable.id} // void *variable
+    },
         </#list>
 };
     </#if>
     <#if action.actionTask.groupPort?has_content>
-PORT group_port_of_${action.actionTask.name} = {
-    "${action.group.port.name}", -1, &variable_group
+PORT ${robotId}_group_port_of_${action.actionTask.name} = {
+    "${action.group.port.name}", // char *port_name
+    -1, // int port_id
+    &${robotId}_variable_group // void *variable
 };
     </#if>
 </#list>
 
 <#list commPortList as commPort>
-static PORT port_of_${commPort.name} = {"${commPort.name}", -1, NULL};
+static PORT ${robotId}_port_of_${commPort.name} = {
+    "${commPort.name}", // char *port_name
+    -1, // int port_id
+    NULL // void *variable
+};
 </#list>
 
 <#list commStatementList as commStatement>
-COMM_PORT comm_port_of_${commStatement.statementId}[${commStatement.comm.portList?size}] = {
+COMM_PORT ${robotId}_comm_port_of_${commStatement.statementId} = {
     <#list commStatement.comm.portList as commPort>
-    {&port_of_${commPort.port.name}, &variable_${commPort.variable.id}, ID_TEAM_${commPort.port.counterTeam}},
+    &${robotId}_port_of_${commPort.port.name}, // PORT *port
+    &${robotId}_variable_${commPort.variable.id}, // void *variable
+    ID_TEAM_${robotId}_${commPort.port.counterTeam}, // int team_id 
     </#list>
 };
-semo_int32 comm_port_of_${commStatement.statementId}_size = ${commStatement.comm.portList?size};
 </#list>
 
 <#list throwStatementList as throwStatement>
     <#if throwStatement.statement.statement.isBroadcast() == true>
-COMM_PORT throw_out_port_of_${throwStatement.statementId} = {&port_of_${throwStatement.th.outPort.port.name}, NULL, 0};
+COMM_PORT ${robotId}_throw_out_port_of_${throwStatement.service.serviceId}_${throwStatement.statementId} = {
+    &${robotId}_port_of_${throwStatement.th.outPort.port.name}, // PORT *port
+    NULL, // void *variable
+    0 // int team_id
+};
     </#if>
 </#list>
 
@@ -59,65 +78,69 @@ COMM_PORT throw_out_port_of_${throwStatement.statementId} = {&port_of_${throwSta
         </#if>
     </#if>
 </#list>
-COMM_PORT throw_in_port_list[${thInPortList?size}] = {
+COMM_PORT ${robotId}_throw_in_port_list[${thInPortList?size}] = {
 <#list thInPortList as thInPort>
-{&port_of_${thInPort.port.name}, NULL, ID_GROUP_${thInPort.groupId}},
+    {
+        &${robotId}_port_of_${thInPort.port.name}, // PORT *port
+        NULL, // void *variable
+        ID_GROUP_${robotId}_${thInPort.groupId} // int team_id
+    },
 </#list>
 };
-semo_int32 throw_in_port_list_size = ${thInPortList?size};
+semo_int32 ${robotId}_throw_in_port_list_size = ${thInPortList?size};
 
-PORT port_of_leader = {"${leaderPort.name}", -1, &variable_leader};
+PORT ${robotId}_port_of_leader = {
+    "${leaderPort.name}", // char *port_name
+    -1, // int port_id
+    &${robotId}_variable_leader // void *variable
+};
 
-PORT port_of_grouping_mode = {"${groupingModePort.name}", -1, &variable_grouping_mode};
-PORT port_of_grouping_result = {"${groupingResultPort.name}", -1, &variable_grouping_result};
+PORT ${robotId}_port_of_grouping_mode = {
+    "${groupingModePort.name}", // char *port_name
+    -1, // int port_id
+    &${robotId}_variable_grouping_mode // void *variable
+};
+PORT ${robotId}_port_of_grouping_result = {
+    "${groupingResultPort.name}", // char *port_name
+    -1, // int port_id
+    &${robotId}_variable_grouping_result // void *variable
+};
 
-COMM_PORT* get_team_port(COMM_PORT* port_list, semo_int32 port_list_size, semo_int32 team_id)
-{
-    for (semo_int32 i = 0; i < port_list_size; i++) 
-    {
-        if (port_list[i].team_id == team_id) 
-        {
-            return &port_list[i];
-        }
-    }
-    return NULL;
-}
-
-static void action_port_init() {
+static void ${robotId}_action_port_init() {
 <#list actionList as action>
     <#if action.inputList?size gt 0 >
     for (int i = 0 ; i < ${action.inputList?size} ; i++)
     {
-        UFPort_Initialize(CONTROL_TASK_ID, input_port_of_${action.actionTask.name}[i].port_name, &(input_port_of_${action.actionTask.name}[i].port_id));
+        UFPort_Initialize(CONTROL_TASK_ID, ${robotId}_input_port_of_${action.actionTask.name}[i].port_name, &(${robotId}_input_port_of_${action.actionTask.name}[i].port_id));
     }
     </#if>
     <#if action.outputList?size gt 0 >
     for (int i = 0 ; i < ${action.outputList?size} ; i++)
     {
-        UFPort_Initialize(CONTROL_TASK_ID, output_port_of_${action.actionTask.name}[i].port_name, &(output_port_of_${action.actionTask.name}[i].port_id));
+        UFPort_Initialize(CONTROL_TASK_ID, ${robotId}_output_port_of_${action.actionTask.name}[i].port_name, &(${robotId}_output_port_of_${action.actionTask.name}[i].port_id));
     }
     </#if>
     <#if action.actionTask.groupPort?has_content>
-    UFPort_Initialize(CONTROL_TASK_ID, group_port_of_${action.actionTask.name}.port_name, &(group_port_of_${action.actionTask.name}.port_id));
+    UFPort_Initialize(CONTROL_TASK_ID, ${robotId}_group_port_of_${action.actionTask.name}.port_name, &(${robotId}_group_port_of_${action.actionTask.name}.port_id));
     </#if>
 </#list>
 }
 
-static void comm_port_init() {
+static void ${robotId}_comm_port_init() {
 <#list commPortList as commPort>
-    UFPort_Initialize(CONTROL_TASK_ID, port_of_${commPort.name}.port_name, &(port_of_${commPort.name}.port_id));
+    UFPort_Initialize(CONTROL_TASK_ID, ${robotId}_port_of_${commPort.name}.port_name, &(${robotId}_port_of_${commPort.name}.port_id));
 </#list>
 }
 
-static void additional_port_init() {
-    UFPort_Initialize(CONTROL_TASK_ID, port_of_leader.port_name, &(port_of_leader.port_id));
-    UFPort_Initialize(CONTROL_TASK_ID, port_of_grouping_mode.port_name, &(port_of_grouping_mode.port_id));
-    UFPort_Initialize(CONTROL_TASK_ID, port_of_grouping_result.port_name, &(port_of_grouping_result.port_id));
+static void ${robotId}_additional_port_init() {
+    UFPort_Initialize(CONTROL_TASK_ID, ${robotId}_port_of_leader.port_name, &(${robotId}_port_of_leader.port_id));
+    UFPort_Initialize(CONTROL_TASK_ID, ${robotId}_port_of_grouping_mode.port_name, &(${robotId}_port_of_grouping_mode.port_id));
+    UFPort_Initialize(CONTROL_TASK_ID, ${robotId}_port_of_grouping_result.port_name, &(${robotId}_port_of_grouping_result.port_id));
 }
 
-void port_init() {
+void ${robotId}_port_init() {
     SEMO_LOG_INFO("port init");
-    action_port_init();
-    comm_port_init();
-    additional_port_init();
+    ${robotId}_action_port_init();
+    ${robotId}_comm_port_init();
+    ${robotId}_additional_port_init();
 }
