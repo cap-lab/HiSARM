@@ -14,13 +14,14 @@ from ssh_manager import SSHManager
 
 generated_dir_path="generated"
 
-ARDUINO_DIR = "/home/caplab/arduino-ide_2.0.1_Linux_64bit"
+#ARDUINO_DIR = "/home/caplab/arduino-ide_2.0.1_Linux_64bit"
 #PKG_CONFIG_DIR = "/home/caplab/cross_env/usr/local/lib/arm-linux-gnueabihf/pkgconfig:/home/caplab/cross_env/usr/lib/arm-linux-gnueabihf/pkgconfig:/home/caplab/cross_env/usr/share/pkgconfig"
-PKG_CONFIG_DIR = "/home/caplab/cross_env_aarch64/usr/lib/aarch64-linux-gnu/pkgconfig:/home/caplab/cross_env_aarch64/usr/lib/aarch64-linux-gnu/openmpi/lib/pkgconfig:/home/caplab/cross_env_aarch64/usr/lib/aarch64-linux-gnu/open-coarrays/openmpi/pkgconfig:/home/caplab/cross_env_aarch64/usr/lib/pkgconfig:/home/caplab/cross_env_aarch64/usr/share/pkgconfig"
+#PKG_CONFIG_DIR = "/home/caplab/cross_env_aarch64/usr/lib/aarch64-linux-gnu/pkgconfig:/home/caplab/cross_env_aarch64/usr/lib/aarch64-linux-gnu/openmpi/lib/pkgconfig:/home/caplab/cross_env_aarch64/usr/lib/aarch64-linux-gnu/open-coarrays/openmpi/pkgconfig:/home/caplab/cross_env_aarch64/usr/lib/pkgconfig:/home/caplab/cross_env_aarch64/usr/share/pkgconfig"
 #SYSROOT_DIR = "/home/caplab/cross_env"
-SYSROOT_DIR = "/home/caplab/cross_env_aarch64"
+#SYSROOT_DIR = "/home/caplab/cross_env_aarch64"
 #COMPILER_TARGET = "arm-linux-gnueabihf"
-COMPILER_TARGET = "aarch64-linux-gnu"
+#COMPILER_TARGET = "aarch64-linux-gnu"
+
 UPLOAD_TARGET_DIR = "~/workspace/uploaded_binary"
 TARGET_OS_BINARY_NAME = "proc_os"
 TARGET_NONOS_BINARY_NAME = "proc_nonos.bin"
@@ -62,7 +63,7 @@ def runCommand(command):
         raise Exception("Command - " + command) 
 
 
-def setBuildEnvironment(device_name, db_handle, yaml_info):
+def getCompileOptionDB(device_name, db_handle, yaml_info):
     if "environment" in yaml_info and yaml_info['environment'] == "simulation":  # simulation
         simulDevice_collection = db_handle['SimulationDevice']
         simul_device = simulDevice_collection.find_one({"DeviceId": device_name}) 
@@ -76,6 +77,10 @@ def setBuildEnvironment(device_name, db_handle, yaml_info):
         #robot = robot_impl['RobotClass']
         #robot['Architecture']['architectureList']
     compile_option = db_handle['CompileOption'].find_one({"DeviceName": archi_name})
+    return compile_option
+
+def setBuildEnvironment(device_name, db_handle, yaml_info):
+    compile_option = getCompileOptionDB(device_name, db_handle, yaml_info)
     if bool(compile_option['CrossCompile']) is True:
         #compile_option['CrossCompile']['EnvironmentVariable']
         os.environ["PKG_CONFIG_LIBDIR"] =  ':'.join(compile_option['CrossCompile']['PkgConfigDir'])
@@ -162,6 +167,7 @@ def getMongoDB(yamlInfo):
 
     return db_handle
 
+
 def getMatchedRobotFromDirName(dirName, robotList):
     matched_name = None
     for robot_name in robotList:
@@ -171,22 +177,28 @@ def getMatchedRobotFromDirName(dirName, robotList):
     return matched_name
 
 
-def getUploadTargetIPAndUserName(robotName, robotImplCollection):
-    robot_comm = robotImplCollection.find_one({"RobotId": robotName})
-    if robot_comm['UploadInfo']['type'] == "ssh":
-        ip_address = robot_comm['UploadInfo']['address']['ip']
-        user_name = robot_comm['UploadInfo']['address']['username']
+def getUploadInfo(device_info, device_name, db_handle, yaml_info):
+    if device_info['UploadInfo']['type'] == "ssh":
+        ip_address = device_info['UploadInfo']['address']['ip']
+        user_name = device_info['UploadInfo']['address']['username']
+        compile_option = getCompileOptionDB(device_name, db_handle, yaml_info)
+        pre_run_commands = compile_option['PreRunCommands']
+        post_run_commands = compile_option['PostRunCommands']
+        return ip_address, user_name, pre_run_commands, post_run_commands
 
-    return ip_address, user_name
 
-def getUploadSimulationIPAndUserName(simulationDeviceName, simulationDeviceCollection):
-    simul_comm = simulationDeviceCollection.find_one({"DeviceId": simulationDeviceName})
-    if simul_comm['UploadInfo']['type'] == "ssh":
-        ip_address = simul_comm['UploadInfo']['address']['ip']
-        user_name = simul_comm['UploadInfo']['address']['username']
+def getInfoOfUploadTarget(robotName, device_name, db_handle, yaml_info):
+    robotImpl_collection = db_handle['RobotImpl']
+    robot_comm = robotImpl_collection.find_one({"RobotId": robotName})
 
-    return ip_address, user_name
+    return getUploadInfo(robot_comm, device_name, db_handle, yaml_info)
 
+
+def getInfoOfUploadSimulation(simulationDeviceName, db_handle, yaml_info):
+    simulDevice_collection = db_handle['SimulationDevice']
+    simul_comm = simulDevice_collection.find_one({"DeviceId": simulationDeviceName})
+
+    return getUploadInfo(simul_comm, simulationDeviceName, db_handle, yaml_info)
 
 
 class BinaryUploader:
@@ -195,6 +207,7 @@ class BinaryUploader:
         self.target = target
         self.ip_address = ip_address
         self.user_name = user_name
+
 
 def uploadSingleBinary(binary_uploader):
     print("upload binary start: " + binary_uploader.dir_name + "," + binary_uploader.ip_address)
@@ -211,49 +224,58 @@ def uploadSingleBinary(binary_uploader):
     print("upload binary end: " + binary_uploader.dir_name)
    
 
-def makeBinaryUploaderFromSimulationDeviceList(dbHandle):
-    simulDevice_collection = dbHandle['SimulationDevice']
-    uploaded_robot_addr_list = []
+def updateUploadedRobotAddrMap(uploaded_robot_addr_map, ip_address, user_name, pre_run_commands, post_run_commands):
+    if ip_address not in uploaded_robot_addr_map:
+        exec_info_map = {}
+        exec_info_map['username'] = user_name
+        exec_info_map['PreRunCommands'] = pre_run_commands
+        exec_info_map['PostRunCommands'] = post_run_commands
+        uploaded_robot_addr_map[ip_address] = exec_info_map
+    else:
+        uploaded_robot_addr_map[ip_address]['PreRunCommands'].extend(pre_run_commands)
+        uploaded_robot_addr_map[ip_address]['PostRunCommands'].extend(post_run_commands)
+    return uploaded_robot_addr_map
+
+
+def makeBinaryUploaderFromSimulationDeviceList(db_handle, yaml_info):
+    uploaded_robot_addr_map = {}
     binary_uploader_list = []
     for file_name in os.listdir("."):
         if os.path.isdir(file_name): 
             os.chdir(file_name)
             target = checkBuildTarget()
             # file_name is a simulation device name
-            ip_address, user_name = getUploadSimulationIPAndUserName(file_name, simulDevice_collection)
+            ip_address, user_name, pre_run_commands, post_run_commands = getInfoOfUploadSimulation(file_name, db_handle, yaml_info)
             binary_uploader = BinaryUploader(file_name, target, ip_address, user_name)
             binary_uploader_list.append(binary_uploader)
-            if ip_address not in uploaded_robot_addr_list:
-                uploaded_robot_addr_list.append(ip_address)
+            uploaded_robot_addr_map = updateUploadedRobotAddrMap(uploaded_robot_addr_map, ip_address, user_name, pre_run_commands, post_run_commands)
             os.chdir("..")
-    return binary_uploader_list, uploaded_robot_addr_list
+    return binary_uploader_list, uploaded_robot_addr_map
 
 
-def makeBinaryUploaderFromRobotList(dbHandle, robotList):
-    robotImpl_collection = dbHandle['RobotImpl']
-    uploaded_robot_addr_list = []
+def makeBinaryUploaderFromRobotList(db_handle, robotList, yaml_info):
+    uploaded_robot_addr_map = {}
     binary_uploader_list = []
     for file_name in os.listdir("."):
         if os.path.isdir(file_name): 
             os.chdir(file_name)
             robot_name = getMatchedRobotFromDirName(file_name, robotList)
             target = checkBuildTarget()
-            ip_address, user_name = getUploadTargetIPAndUserName(robot_name, robotImpl_collection)
+            ip_address, user_name, pre_run_commands, post_run_commands = getInfoOfUploadTarget(robot_name, file_name, db_handle, yaml_info)
             binary_uploader = BinaryUploader(file_name, target, ip_address, user_name)
             binary_uploader_list.append(binary_uploader)
-            if ip_address not in uploaded_robot_addr_list:
-                uploaded_robot_addr_list.append(ip_address)
+            uploaded_robot_addr_map = updateUploadedRobotAddrMap(uploaded_robot_addr_map, ip_address, user_name, pre_run_commands, post_run_commands)
             os.chdir("..")
-    return binary_uploader_list, uploaded_robot_addr_list
+    return binary_uploader_list, uploaded_robot_addr_map
 
 
-def uploadDeploymentBinary(projectDirPath, dbHandle, uploadIdList, isSimulation):
+def uploadDeploymentBinary(projectDirPath, db_handle, uploadIdList, isSimulation, yaml_info):
     working_dir_path = os.getcwd()
     os.chdir(projectDirPath)
     if isSimulation is True:
-        binary_uploader_list, uploaded_robot_addr_list = makeBinaryUploaderFromSimulationDeviceList(dbHandle)
+        binary_uploader_list, uploaded_robot_addr_map = makeBinaryUploaderFromSimulationDeviceList(db_handle, yaml_info)
     else:
-        binary_uploader_list, uploaded_robot_addr_list = makeBinaryUploaderFromRobotList(dbHandle, uploadIdList)
+        binary_uploader_list, uploaded_robot_addr_map = makeBinaryUploaderFromRobotList(db_handle, uploadIdList, yaml_info)
 
     thread_list = []
     for uploader in binary_uploader_list:
@@ -267,11 +289,11 @@ def uploadDeploymentBinary(projectDirPath, dbHandle, uploadIdList, isSimulation)
         thread.join()
 
     os.chdir(working_dir_path)
-    return uploaded_robot_addr_list
+    return uploaded_robot_addr_map
 
-def writeRobotIpLists(robotAddrList):
+def writeRobotIpMap(robotAddrMap):
     with open(ROBOT_ADDDR_FILE_NAME,'wb') as f:
-        pickle.dump(robotAddrList, f)
+        pickle.dump(robotAddrMap, f)
 
 
 if platform.system() == "Windows":
@@ -321,10 +343,27 @@ else:
     upload_list = yaml_info['robotList']
     isSimulation = False
 
-robot_addr_list = uploadDeploymentBinary(project_dir_path, db_handle, upload_list, isSimulation)
+robot_addr_map = uploadDeploymentBinary(project_dir_path, db_handle, upload_list, isSimulation, yaml_info)
 
-writeRobotIpLists(robot_addr_list)
+writeRobotIpMap(robot_addr_map)
 print ("### BIO SW Upload is done! ###############")
+
+
+# list 
+# internal : dictionary
+
+# "ip" 
+# "username"
+# "PreRunCommands"
+# "PostRunCommands"
+
+
+
+
+
+
+
+
 
 
 
