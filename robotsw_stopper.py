@@ -5,12 +5,14 @@ import pickle
 
 from ssh_manager import SSHManager
 
+from robotsw_executer import runCommands, pkillBinary, sendCommandListWithThreads, sendCommandWithThreads
+
 UPLOAD_TARGET_DIR = "~/workspace/uploaded_binary"
 TARGET_OS_BINARY_NAME = "proc_os"
 TARGET_NONOS_BINARY_NAME = "proc_nonos.bin"
 
 
-robot_address_list = []
+robot_address_map = {}
 ssh_manager_map = {}
 
 ssh_manager = SSHManager()
@@ -20,29 +22,21 @@ ssh_manager = SSHManager()
 #print(out)
 
 with open("robot_address.pickle",'rb') as f:
-    robot_address_list = pickle.load(f)
-
-#robot_address_list = ["192.168.50.5"]
+    robot_address_map = pickle.load(f)
 
 print ("### Connecting to BIO Robots! #######")
 
-for addr in robot_address_list:
+for addr,info in robot_address_map.items():
     ssh_manager_map[addr] = SSHManager()
-    ssh_manager_map[addr].create_ssh_client(addr)
+    ssh_manager_map[addr].create_ssh_client(addr, info['username'])
 
 print ("### Connected to BIO Robots! ########")
 
 print ("### Stopping BIO Robots ! ############")
-for addr, client in ssh_manager_map.items():
-    out = client.send_command("pkill " + TARGET_OS_BINARY_NAME) 
-
-for addr, client in ssh_manager_map.items():
-    out = client.send_command("pkill v4l2rtspserver")
-
-for addr, client in ssh_manager_map.items():
-    out = client.send_command("~/tools/opencr_reset /dev/ttyACM0 115200") 
+sendCommandWithThreads(ssh_manager_map, pkillBinary)
+sendCommandListWithThreads(ssh_manager_map, robot_address_map, 'PostRunCommands')
 print ("### BIO Robots are Stopped ! #########")
  
-for addr in robot_address_list:
+for addr in robot_address_map:
     ssh_manager_map[addr].close_ssh_client()
 
