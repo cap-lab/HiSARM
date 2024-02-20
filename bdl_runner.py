@@ -83,10 +83,13 @@ def setBuildEnvironment(device_name, db_handle, yaml_info):
     compile_option = getCompileOptionDB(device_name, db_handle, yaml_info)
     if bool(compile_option['CrossCompile']) is True:
         #compile_option['CrossCompile']['EnvironmentVariable']
-        os.environ["PKG_CONFIG_LIBDIR"] =  ':'.join(compile_option['CrossCompile']['PkgConfigDir'])
-        os.environ["SYSROOT_DIR"] =  compile_option['CrossCompile']['SysRoot']
+        if 'PkgConfigDir' in compile_option['CrossCompile']:
+            os.environ["PKG_CONFIG_LIBDIR"] =  ':'.join(compile_option['CrossCompile']['PkgConfigDir'])
+        if 'SysRoot' in compile_option['CrossCompile']:
+            os.environ["SYSROOT_DIR"] =  compile_option['CrossCompile']['SysRoot']
+
         for env_item in compile_option['CrossCompile']['EnvironmentVariable']:
-            os.environ[env_item['name']] = os.environ[env_item['value']]
+            os.environ[env_item['name']] = env_item['value']
     else:
         os.environ["PKG_CONFIG_LIBDIR"] = ""
         os.environ["SYSROOT_DIR"] =  ""
@@ -108,14 +111,16 @@ def buildOSTarget(device_name, db_handle, yaml_info):
         library_flags = "-L" + library_flags
 
     sysroot_dir = ""
+    compiler_host = ""
+
     if bool(compile_option['CrossCompile']) is True:
         cross_compile_option = compile_option['CrossCompile']
-        if bool(cross_compile_option['SysRoot']):
+        
+        if 'SysRoot' in cross_compile_option:
             sysroot_dir = "--sysroot=${SYSROOT_DIR}"
-        compiler_host = "--host=" + cross_compile_option['CompilerTarget']
-    else:
-        compiler_host = ""
-
+        if 'CompilerTarget' in cross_compile_option:
+            compiler_host = "--host=" + cross_compile_option['CompilerTarget']
+ 
     full_cflags = "CFLAGS=\"-O2 -g " + sysroot_dir + " " + include_flags  +  "\""
     full_cxxflags = "CXXFLAGS=\"-O2 -g " + sysroot_dir +  " " + include_flags + " " + cxx_flags + "\""
     if len(library_flags) > 0:
@@ -127,7 +132,6 @@ def buildOSTarget(device_name, db_handle, yaml_info):
     runCommand("./preinstall.sh")
     runCommand("./configure " + full_cflags + " " + full_cxxflags + " " + full_ldflags +  " " + compiler_host)
        
-    #runCommand("./configure CFLAGS=\"--sysroot=${SYSROOT_DIR} -O2 -g -I${SYSROOT_DIR}/home/caplab/software/zmqRemoteApi/clients/cpp -I${SYSROOT_DIR}/home/caplab/software/zmqRemoteApi/clients/cpp/build/jsoncons/include\"  CXXFLAGS=\"--sysroot=${SYSROOT_DIR} -O2 -I${SYSROOT_DIR}/home/caplab/software/zmqRemoteApi/clients/cpp -I${SYSROOT_DIR}/home/caplab/software/zmqRemoteApi/clients/cpp/build/jsoncons/include --std=c++17\" LDFLAGS=\"-L${SYSROOT_DIR}/home/caplab/software/simZMQ/build -L${SYSROOT_DIR}/home/caplab/software/zmqRemoteApi/clients/cpp/build\" --host=" + COMPILER_TARGET)
     runCommand("make -j")
 
 def buildNonOSTarget():
