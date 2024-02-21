@@ -1,0 +1,311 @@
+#include "UFTimer.h"
+
+LIBFUNC(void, init, void) {
+    SEMO_LEADER* leader_list = ROBOT_SPECIFIC(leader_list);
+    for (int i = 0; i < ROBOT_SPECIFIC(leader_list_size) ; i++) {
+       UCThreadMutex_Create(&leader_list[i].selection_info_mutex);
+       UCThreadMutex_Create(&leader_list[i].heartbeat_mutex);
+    }
+}
+
+LIBFUNC(void, wrapup, void) {
+    SEMO_LEADER* leader_list = ROBOT_SPECIFIC(leader_list);
+    for (int i = 0; i < ROBOT_SPECIFIC(leader_list_size) ; i++) {
+       UCThreadMutex_Destroy(&leader_list[i].selection_info_mutex);
+       UCThreadMutex_Destroy(&leader_list[i].heartbeat_mutex);
+    }
+}
+
+static SEMO_LEADER* find_leader_struct(semo_int32 group_id) {
+    semo_int32 i;
+    SEMO_LEADER* leader_list = ROBOT_SPECIFIC(leader_list);
+    for (i = 0; i < ROBOT_SPECIFIC(leader_list_size); i++) {
+        if (leader_list[i].group_id == group_id) {
+            return leader_list + i;
+        }
+    }
+    SEMO_LOG_ERROR("Not Found Leader Struct (Robot %s, Group Id %d)", THIS_ROBOT_NAME, group_id);
+    return NULL;
+}
+
+static semo_int32 find_selection_info_index(SEMO_LEADER* leader, semo_int32 robot_id) {
+    for (int i = 0; i < leader->selection_info_robot_num; i++) {
+        if (leader->selection_info_robot_list[i].robot_id == robot_id) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+static semo_int32 find_robot_heartbeat_index(SEMO_LEADER* leader, semo_int32 robot_id) {
+    for (int i = 0 ; i < leader->heartbeat_robot_num ; i++) {
+        if (leader->heartbeat_robot_list[i].robot_id == robot_id) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+static void initialize_leader_struct(SEMO_LEADER *leader, LEADER_SELECTION_STATE state){
+    leader->leader_selection_state = state;
+    switch(state){
+        case LEADER_SELECTION_STOP:
+            UCThreadMutex_Lock(leader->selection_info_mutex);
+            leader->selection_info_robot_num = 0;
+            leader->selection_info_refreshed = FALSE;
+            UCThreadMutex_Unlock(leader->selection_info_mutex);
+            UCThreadMutex_Lock(leader->heartbeat_mutex);
+            leader->heartbeat_robot_num = 0;
+            leader->new_robot_added = FALSE;
+            leader->duplicated_leader = FALSE;
+            UCThreadMutex_Unlock(leader->heartbeat_mutex);
+            break;
+        case LEADER_SELECTION_NOT_SELECTED:
+            leader->leader_id = -1;
+            UCThreadMutex_Lock(leader->selection_info_mutex);
+            leader->selection_info_robot_num = 1;
+            leader->selection_info_robot_list[0].robot_id = THIS_ROBOT_ID;
+            leader->selection_info_robot_list[0].last_updated_time = 0;
+            leader->selection_info_refreshed = FALSE;
+            UCThreadMutex_Unlock(leader->selection_info_mutex);
+            UCThreadMutex_Lock(leader->heartbeat_mutex);
+            leader->heartbeat_robot_num = 1;
+            leader->heartbeat_robot_list[0].robot_id = THIS_ROBOT_ID;
+            leader->heartbeat_robot_list[0].last_heartbeat_time = 0;
+            UCThreadMutex_Unlock(leader->heartbeat_mutex);
+            break;
+        case LEADER_SELECTION_SELECTED:
+            UCThreadMutex_Lock(leader->heartbeat_mutex);
+            leader->new_robot_added = FALSE;
+            leader->duplicated_leader = FALSE;
+            UCThreadMutex_Unlock(leader->heartbeat_mutex);
+        default:
+            break;
+    }
+}
+
+LIBFUNC(void, set_selection_info_listen, semo_int32 group_id, semo_int32 robot_id, semo_int64 updated_time, semo_int8 *shared_data) {
+    SEMO_LEADER* leader = find_leader_struct(group_id);
+    semo_int32 size = ROBOT_SPECIFIC(leader_selection_info_size);
+    if (shared_data == NULL) {
+        SEMO_LOG_ERROR("Shared Data is NULL (Robot %s, Group Id %d)", THIS_ROBOT_NAME, group_id);
+        return;
+    }
+    if (leader != NULL && leader->leader_selection_state != LEADER_SELECTION_STOP) {
+        UCThreadMutex_Lock(leader->selection_info_mutex);
+        int robotIndex = find_selection_info_index(leader, robot_id);
+        if(robotIndex < 0) {
+            leader->selection_info_robot_list[leader->selection_info_robot_num].robot_id = robot_id;
+            leader->selection_info_robot_list[leader->selection_info_robot_num].last_updated_time = updated_time;
+            memcpy(leader->selection_info_robot_list[leader->selection_info_robot_num].data, shared_data, size);
+            leader->selection_info_robot_num++;
+        } else {
+            if (leader->selection_info_robot_list[robotIndex].last_updated_time < updated_time) {
+                leader->selection_info_robot_list[robotIndex].last_updated_time = updated_time;
+                memcpy(leader->selection_info_robot_list[robotIndex].data, shared_data, size);
+            }
+        }
+        UCThreadMutex_Unlock(leader->selection_info_mutex);
+    }
+}
+
+LIBFUNC(void, get_selection_info_leader, semo_int32 group_id, semo_int32 *robot_num, semo_int32 *robot_list, semo_int8 *shared_data) {
+    SEMO_LEADER* leader = find_leader_struct(group_id);
+    semo_int32 size = ROBOT_SPECIFIC(leader_selection_info_size);
+    if (shared_data == NULL) {
+        SEMO_LOG_ERROR("Shared Data is NULL (Robot %s, Group Id %d)", THIS_ROBOT_NAME, group_id);
+        return;
+    }
+    if (leader != NULL && leader->leader_selection_state != LEADER_SELECTION_STOP) {
+        UCThreadMutex_Lock(leader->selection_info_mutex);
+        *robot_num = leader->selection_info_robot_num;
+        for (int i = 0 ; i < leader->selection_info_robot_num ; i++) {
+            robot_list[i] = leader->selection_info_robot_list[i].robot_id;
+            memcpy(shared_data+i*size, leader->selection_info_robot_list[i].data, size);
+        }
+        UCThreadMutex_Unlock(leader->selection_info_mutex);
+    }
+}
+
+LIBFUNC(void, set_selection_info_leader, semo_int32 group_id, semo_int8 *shared_data) {
+    SEMO_LEADER* leader = find_leader_struct(group_id);
+    semo_int32 size = ROBOT_SPECIFIC(leader_selection_info_size);
+    if (leader != NULL) {
+        UCThreadMutex_Lock(leader->selection_info_mutex);
+        memcpy(leader->selection_info_robot_list[0].data, shared_data, size);
+        leader->selection_info_refreshed = TRUE;
+        UCThreadMutex_Unlock(leader->selection_info_mutex);
+    }
+}
+
+LIBFUNC(semo_int8, avail_selection_info_report, semo_int32 group_id) {
+    SEMO_LEADER* leader = find_leader_struct(group_id);
+    if (leader != NULL) {
+        return leader->selection_info_refreshed;
+    }
+    return FALSE;
+}
+
+LIBFUNC(void, get_selection_info_report, semo_int32 group_id, semo_int8 *shared_data) {
+    SEMO_LEADER* leader = find_leader_struct(group_id);
+    semo_int32 size = ROBOT_SPECIFIC(leader_selection_info_size);
+    if (leader != NULL) {
+        UCThreadMutex_Lock(leader->selection_info_mutex);
+        memcpy(shared_data, leader->selection_info_robot_list[0].data, size);
+        leader->selection_info_refreshed = FALSE;
+        UCThreadMutex_Unlock(leader->selection_info_mutex);
+    }
+}
+
+LIBFUNC(void, set_heartbeat_listen, semo_int32 group_id, semo_int32 robot_id, semo_int64 heartbeat_time, semo_int32 leader_id) {
+    SEMO_LEADER* leader = find_leader_struct(group_id);
+    if (leader != NULL && leader->leader_selection_state != LEADER_SELECTION_STOP) {
+        UCThreadMutex_Lock(leader->heartbeat_mutex);
+        semo_int32 index = find_robot_heartbeat_index(leader, robot_id);
+        if (index < 0) {
+            leader->heartbeat_robot_list[leader->heartbeat_robot_num].robot_id = robot_id;
+            leader->heartbeat_robot_list[leader->heartbeat_robot_num].leader_id = leader_id;
+            leader->heartbeat_robot_list[leader->heartbeat_robot_num].last_heartbeat_time = heartbeat_time;
+            leader->heartbeat_robot_num++;
+            leader->new_robot_added = TRUE;
+        } else {
+            if (leader->heartbeat_robot_list[index].last_heartbeat_time < heartbeat_time) {
+                leader->heartbeat_robot_list[index].leader_id = leader_id;
+                leader->heartbeat_robot_list[index].last_heartbeat_time = heartbeat_time;
+            }
+        }
+        if (leader->leader_id != leader_id && leader_id != -1) {
+            leader->duplicated_leader = TRUE;
+        }
+        UCThreadMutex_Unlock(leader->heartbeat_mutex);
+    }
+}
+
+LIBFUNC(semo_int8, remove_malfunctioned_robot, semo_int32 group_id) {
+    semo_int8 ret = FALSE;
+    SEMO_LEADER* leader = find_leader_struct(group_id);
+    if (leader != NULL) {
+        semo_int64 cur_time = 0;
+        if (leader->leader_selection_state == LEADER_SELECTION_STOP) {
+            return ret;
+        }
+        UFTimer_GetCurrentTime(0, &cur_time);
+        UCThreadMutex_Lock(leader->heartbeat_mutex);
+        for (int i = 1 ; i < leader->heartbeat_robot_num ; i++) {
+            if (cur_time - leader->heartbeat_robot_list[i].last_heartbeat_time > LEADER_SELECTION_TIMEOUT) {
+                if (leader->leader_id == leader->heartbeat_robot_list[i].leader_id) {
+                    ret = TRUE; 
+                }
+                leader->heartbeat_robot_list[i].robot_id = leader->heartbeat_robot_list[leader->heartbeat_robot_num - 1].robot_id;
+                leader->heartbeat_robot_list[i].last_heartbeat_time = leader->heartbeat_robot_list[leader->heartbeat_robot_num - 1].last_heartbeat_time;
+                leader->heartbeat_robot_list[i].leader_id = leader->heartbeat_robot_list[leader->heartbeat_robot_num - 1].leader_id;
+                leader->heartbeat_robot_num--;
+                i--;
+            }
+        }
+        UCThreadMutex_Unlock(leader->heartbeat_mutex);
+    }
+    return ret;
+}
+
+LIBFUNC(semo_int8, avail_heartbeat_report, semo_int32 group_id) {
+    SEMO_LEADER* leader = find_leader_struct(group_id);
+    if (leader == NULL || leader->leader_selection_state == LEADER_SELECTION_STOP) {
+        return FALSE;
+    }
+    if (leader != NULL) {
+        semo_int64 cur_time = 0;
+        UFTimer_GetCurrentTime(0, &cur_time);
+        if (cur_time - leader->heartbeat_robot_list[0].last_heartbeat_time > LEADER_SELECTION_PERIOD) {
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+
+LIBFUNC(void, get_heartbeat_report, semo_int32 group_id, semo_int32 *leader_id) {
+    SEMO_LEADER* leader = find_leader_struct(group_id);
+    if (leader != NULL) {
+        UCThreadMutex_Lock(leader->heartbeat_mutex);
+        leader->heartbeat_robot_list[0].leader_id = leader->leader_id;
+        *leader_id = leader->leader_id;
+        UCThreadMutex_Unlock(leader->heartbeat_mutex);
+    }
+}
+
+LIBFUNC(void, set_leader_selection_state, semo_int32 group_id, LEADER_SELECTION_STATE state) {
+    SEMO_LEADER* leader = find_leader_struct(group_id);
+    if (leader != NULL) {
+        SEMO_LOG_INFO("Set Leader Selection State (Group Id %d, State %d)", group_id, state);
+        initialize_leader_struct(leader, state);
+    }
+}
+
+LIBFUNC(LEADER_SELECTION_STATE, get_leader_selection_state, semo_int32 group_id) {
+    SEMO_LEADER* leader = find_leader_struct(group_id);
+    if (leader != NULL) {
+        return leader->leader_selection_state;
+    }
+    return -1;
+}
+
+LIBFUNC(semo_int32, get_leader, semo_int32 group_id) {
+    SEMO_LEADER* leader = find_leader_struct(group_id);
+    if (leader != NULL) {
+        return leader->leader_id;
+    }
+    return -1;
+}
+
+LIBFUNC(void, set_leader, semo_int32 group_id, semo_int32 robot_id) {
+    SEMO_LEADER* leader = find_leader_struct(group_id);
+    if (leader != NULL) {
+        SEMO_LOG_DEBUG("Set Leader (Group Id %d, Leader %d)", group_id, robot_id);
+        leader->leader_id = robot_id;
+    }
+}
+
+LIBFUNC(void, get_avail_robot, semo_int32 group_id, semo_int32 *robot_num, semo_int32 *robot_list) {
+    SEMO_LEADER* leader = find_leader_struct(group_id);
+    if (leader != NULL) {
+        if (leader->leader_selection_state == LEADER_SELECTION_STOP) {
+            *robot_num = 0;
+            return;
+        }
+        UCThreadMutex_Lock(leader->heartbeat_mutex);
+        *robot_num = leader->heartbeat_robot_num;
+        for (int i = 0 ; i < leader->heartbeat_robot_num ; i++) {
+            robot_list[i] = leader->heartbeat_robot_list[i].robot_id;
+        }
+        UCThreadMutex_Unlock(leader->heartbeat_mutex);
+    }
+}
+
+LIBFUNC(semo_int8, get_new_robot_added_leader, semo_int32 group_id) {
+    SEMO_LEADER* leader = find_leader_struct(group_id);
+    if (leader != NULL) {
+        return leader->new_robot_added;
+    }
+    return FALSE;
+}
+
+LIBFUNC(semo_int8, get_duplicated_leader, semo_int32 group_id) {
+    SEMO_LEADER* leader = find_leader_struct(group_id);
+    if (leader != NULL) {
+        return leader->duplicated_leader;
+    }
+    return FALSE;
+}
+
+LIBFUNC(semo_int32, get_group_num_leader) {
+    return ROBOT_SPECIFIC(leader_list_size);
+}
+
+LIBFUNC(semo_int32, get_group_id_leader, semo_int32 index) {
+    if (index < 0 || index >= ROBOT_SPECIFIC(leader_list_size)) {
+        SEMO_LOG_ERROR("Invalid Group Index (Robot %s, Group Index %d)", THIS_ROBOT_NAME, index);
+        return -1;
+    }
+    SEMO_LEADER* leader = ROBOT_SPECIFIC(leader_list);
+    return leader[index].group_id;
+}

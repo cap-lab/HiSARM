@@ -1,0 +1,265 @@
+static void channel_port_init() {
+    CHANNEL_PORT *channel_port_list = ROBOT_SPECIFIC(report_channel_port_list);
+    int channel_port_num = ROBOT_SPECIFIC(report_channel_port_num);
+    uem_result result;
+    for (int i = 0 ; i < channel_port_num ; i++)
+    {
+        result = UFPort_Initialize(THIS_TASK_ID, channel_port_list[i].in_port_name, &(channel_port_list[i].in_port_id));
+        ERRIFGOTO(result, _EXIT);
+        result = UFPort_Initialize(THIS_TASK_ID, channel_port_list[i].out_port_name, &(channel_port_list[i].out_port_id));
+        ERRIFGOTO(result, _EXIT);
+_EXIT:
+        if (result != ERR_UEM_NOERROR) 
+        {
+            SEMO_LOG_ERROR("channel port init error: %x (in %s, out %s)", result, channel_port_list[i].in_port_name, channel_port_list[i].out_port_name);
+        }
+    }
+}
+
+static void multicast_port_init() {
+    MULTICAST_PORT *multicast_port_list = ROBOT_SPECIFIC(report_multicast_port_list);
+    int multicast_port_num = ROBOT_SPECIFIC(report_multicast_port_num);
+    uem_result result;
+    for (int i = 0 ; i < multicast_port_num ; i++)
+    {
+        result = UFPort_Initialize(THIS_TASK_ID, multicast_port_list[i].channel_port_name, &(multicast_port_list[i].channel_port_id));
+        ERRIFGOTO(result, _EXIT);
+        result = UFMulticastPort_Initialize(THIS_TASK_ID, multicast_port_list[i].multicast_port_name, &(multicast_port_list[i].multicast_group_id), &(multicast_port_list[i].multicast_port_id));
+        ERRIFGOTO(result, _EXIT);
+_EXIT:
+        if (result != ERR_UEM_NOERROR) 
+        {
+            SEMO_LOG_ERROR("multicast port init error: %x (channel %s, multicast %s)", result, multicast_port_list[i].channel_port_name, multicast_port_list[i].multicast_port_name);
+        }
+    }
+}
+
+static void shared_data_port_init() {
+    SHARED_DATA_PORT *shared_data_port_list = ROBOT_SPECIFIC(report_shared_data_port_list);
+    int shared_data_port_num = ROBOT_SPECIFIC(report_shared_data_port_num);
+    uem_result result;
+    for (int i = 0 ; i < shared_data_port_num ; i++)
+    {
+        result = UFMulticastPort_Initialize(THIS_TASK_ID, shared_data_port_list[i].multicast_port_name, &(shared_data_port_list[i].multicast_group_id), &(shared_data_port_list[i].multicast_port_id));
+        if (result != ERR_UEM_NOERROR) 
+        {
+            SEMO_LOG_ERROR("shared data port init error: %x (multicast %s)", result, shared_data_port_list[i].multicast_port_name);
+        }
+    }
+}
+
+static void group_action_port_init() {
+    GROUP_ACTION_PORT *group_action_port_list = ROBOT_SPECIFIC(report_group_action_port_list);
+    int group_action_port_num = ROBOT_SPECIFIC(report_group_action_port_num);
+    uem_result result;
+    for (int i = 0 ; i < group_action_port_num ; i++)
+    {
+        result = UFMulticastPort_Initialize(THIS_TASK_ID, group_action_port_list[i].multicast_port_name, &(group_action_port_list[i].multicast_group_id), &(group_action_port_list[i].multicast_port_id));
+        if (result != ERR_UEM_NOERROR) 
+        {
+            SEMO_LOG_ERROR("group action port init error: %x (multicast %s)", result, group_action_port_list[i].multicast_port_name);
+        }
+    }
+}
+
+static void leader_port_init() {
+    LEADER_PORT *leader_port_list = ROBOT_SPECIFIC(report_leader_port_list);
+    int leader_port_num = ROBOT_SPECIFIC(report_leader_port_num);
+    uem_result result;
+    for (int i = 0 ; i < leader_port_num ; i++)
+    {
+        result = UFMulticastPort_Initialize(THIS_TASK_ID, leader_port_list[i].selection_info_port_name, &(leader_port_list[i].selection_info_group_id), &(leader_port_list[i].selection_info_port_id));
+        if (result != ERR_UEM_NOERROR) 
+        {
+            SEMO_LOG_ERROR("leader port selection_info init error: %x (multicast %s)", result, leader_port_list[i].selection_info_port_name);
+        }
+        result = UFMulticastPort_Initialize(THIS_TASK_ID, leader_port_list[i].heartbeat_port_name, &(leader_port_list[i].heartbeat_group_id), &(leader_port_list[i].heartbeat_port_id));
+        if (result != ERR_UEM_NOERROR) 
+        {
+            SEMO_LOG_ERROR("leader port heartbeat init error: %x (multicast %s)", result, leader_port_list[i].heartbeat_port_name);
+        }
+    }
+}
+
+static void grouping_port_init() {
+    GROUPING_PORT *grouping_port_list = ROBOT_SPECIFIC(report_grouping_port_list);
+    int grouping_port_num = ROBOT_SPECIFIC(report_grouping_port_num);
+    uem_result result;
+    for (int i = 0 ; i < grouping_port_num ; i++)
+    {
+        result = UFMulticastPort_Initialize(THIS_TASK_ID, grouping_port_list[i].multicast_port_name, &(grouping_port_list[i].multicast_group_id), &(grouping_port_list[i].multicast_port_id));
+        if (result != ERR_UEM_NOERROR) 
+        {
+            SEMO_LOG_ERROR("grouping port init error: %x (multicast %s)", result, grouping_port_list[i].multicast_port_name);
+        }
+    }
+}
+
+TASK_INIT
+{
+	SEMO_LOG_INFO("%s INIT", THIS_ROBOT_NAME);
+    channel_port_init(); 
+    multicast_port_init();
+    shared_data_port_init();
+    group_action_port_init();
+    leader_port_init();
+    grouping_port_init();
+}
+
+/////////////////////////////////////
+// go code
+/////////////////////////////////////
+static void channel_port_send() {
+    CHANNEL_PORT *channel_port_list = ROBOT_SPECIFIC(report_channel_port_list);
+    int channel_port_num = ROBOT_SPECIFIC(report_channel_port_num);
+    for (int i = 0 ; i < channel_port_num ; i++)
+    {
+    	if (channel_port_read(channel_port_list[i].in_port_id, channel_port_list[i].buffer, channel_port_list[i].size, FALSE) > 0) 
+    	{
+    	    channel_port_list[i].refreshed = TRUE;
+    	}
+    	if (channel_port_list[i].refreshed == TRUE) 
+    	{
+    	    if (channel_port_write(channel_port_list[i].out_port_id, channel_port_list[i].buffer, channel_port_list[i].size, FALSE) > 0) 
+    	    {
+    	        channel_port_list[i].refreshed = FALSE;
+    	    }
+    	}    	    
+    }
+}
+
+static void multicast_port_send() {
+    MULTICAST_PORT *multicast_port_list = ROBOT_SPECIFIC(report_multicast_port_list);
+    int multicast_port_num = ROBOT_SPECIFIC(report_multicast_port_num);
+    for (int i = 0 ; i < multicast_port_num ; i++)
+    {
+        if (channel_port_read(multicast_port_list[i].channel_port_id, multicast_port_list[i].packet->data, multicast_port_list[i].size, FALSE) > 0) 
+        {
+            int data_len;
+            int element_size = 0;
+            uem_result result;
+            UFMulticastPort_GetSizeOfElement(multicast_port_list[i].multicast_group_id, &element_size);
+        	UFTimer_GetCurrentTime(THIS_TASK_ID, &(multicast_port_list[i].packet->header->time));
+        	result = UFMulticastPort_WriteToBufferByIndex(multicast_port_list[i].multicast_group_id, multicast_port_list[i].multicast_port_id, (unsigned char * ) multicast_port_list[i].packet->header, element_size, THIS_ROBOT_ID, &data_len);
+            if (result != ERR_UEM_NOERROR) 
+            {
+                SEMO_LOG_ERROR("multicast port write error: %x (group %d, port %d)", result, multicast_port_list[i].multicast_group_id, multicast_port_list[i].multicast_port_id);
+            }
+        }
+    }
+}
+
+static void shared_data_port_send() {
+    SHARED_DATA_PORT *shared_data_port_list = ROBOT_SPECIFIC(report_shared_data_port_list);
+    int shared_data_port_num = ROBOT_SPECIFIC(report_shared_data_port_num);
+    for (int i = 0 ; i < shared_data_port_num ; i++)
+    {
+        if (shared_data_port_list[i].lib_avail_func() == TRUE) 
+        {
+            int data_len;
+            int element_size = 0;
+            uem_result result;
+            SHARED_DATA_PACKET *packet = shared_data_port_list[i].packet;
+            UFMulticastPort_GetSizeOfElement(shared_data_port_list[i].multicast_group_id, &element_size);
+            shared_data_port_list[i].lib_get_func(packet->data);
+            UFTimer_GetCurrentTime(THIS_TASK_ID, &(packet->header->time));
+            result = UFMulticastPort_WriteToBufferByIndex(shared_data_port_list[i].multicast_group_id, shared_data_port_list[i].multicast_port_id, (unsigned char * ) packet->header, element_size, THIS_ROBOT_ID, &data_len);
+            if (result != ERR_UEM_NOERROR) 
+            {
+                SEMO_LOG_ERROR("shared data port write error: %x (group %d, port %d)", result, shared_data_port_list[i].multicast_group_id, shared_data_port_list[i].multicast_port_id);
+            }
+        }
+    }
+}
+
+static void group_action_port_send() {
+    GROUP_ACTION_PORT *group_action_port_list = ROBOT_SPECIFIC(report_group_action_port_list);
+    int group_action_port_num = ROBOT_SPECIFIC(report_group_action_port_num);
+    for (int i = 0 ; i < group_action_port_num ; i++)
+    {
+        if (group_action_port_list[i].lib_avail_func(*(int*)group_action_port_list[i].packet->data) == TRUE) 
+        {
+            int data_len;
+            int element_size = 0;
+            uem_result result;
+            UFMulticastPort_GetSizeOfElement(group_action_port_list[i].multicast_group_id, &element_size);
+            UFTimer_GetCurrentTime(THIS_TASK_ID, &(group_action_port_list[i].packet->header->time));
+            result = UFMulticastPort_WriteToBufferByIndex(group_action_port_list[i].multicast_group_id, group_action_port_list[i].multicast_port_id, (unsigned char * ) group_action_port_list[i].packet->header, element_size, THIS_ROBOT_ID, &data_len);
+            if (result != ERR_UEM_NOERROR) 
+            {
+                SEMO_LOG_ERROR("group action port write error: %x (group %d, port %d)", result, group_action_port_list[i].multicast_group_id, group_action_port_list[i].multicast_port_id);
+            }
+        }
+    }
+}
+
+static void leader_port_send() {
+    int data_len;
+    LEADER_PORT *leader_port_list = ROBOT_SPECIFIC(report_leader_port_list);
+    int leader_port_num = ROBOT_SPECIFIC(report_leader_port_num);
+    for (int i = 0 ; i < leader_port_num ; i++)
+    {
+        uem_result result;
+        if (leader_port_list[i].selection_info_avail_func(leader_port_list[i].group_id) == TRUE) 
+        {
+            int element_size = 0;
+            UFMulticastPort_GetSizeOfElement(leader_port_list[i].selection_info_group_id, &element_size);
+            leader_port_list[i].selection_info_get_func(leader_port_list[i].group_id, leader_port_list[i].selection_info_packet->data);
+            UFTimer_GetCurrentTime(THIS_TASK_ID, &(leader_port_list[i].selection_info_packet->header->time));
+            result = UFMulticastPort_WriteToBufferByIndex(leader_port_list[i].selection_info_group_id, leader_port_list[i].selection_info_port_id, (unsigned char * ) leader_port_list[i].selection_info_packet->header, element_size, THIS_ROBOT_ID, &data_len);
+            if (result != ERR_UEM_NOERROR) 
+            {
+                SEMO_LOG_ERROR("leader port selection_info write error: %x (group %d, port %d)", result, leader_port_list[i].selection_info_group_id, leader_port_list[i].selection_info_port_id);
+            }
+        }
+        if (leader_port_list[i].heartbeat_avail_func(leader_port_list[i].group_id) == TRUE) 
+        {
+            int element_size = 0;
+            UFMulticastPort_GetSizeOfElement(leader_port_list[i].heartbeat_group_id, &element_size);
+            leader_port_list[i].heartbeat_get_func(leader_port_list[i].group_id, leader_port_list[i].heartbeat_packet->leader_id);
+            UFTimer_GetCurrentTime(THIS_TASK_ID, &(leader_port_list[i].heartbeat_packet->header->time));
+            result = UFMulticastPort_WriteToBufferByIndex(leader_port_list[i].heartbeat_group_id, leader_port_list[i].heartbeat_port_id, (unsigned char * ) leader_port_list[i].heartbeat_packet->header, element_size, THIS_ROBOT_ID, &data_len);
+            if (result != ERR_UEM_NOERROR) 
+            {
+                SEMO_LOG_ERROR("leader port heartbeat write error: %x (group %d, port %d)", result, leader_port_list[i].heartbeat_group_id, leader_port_list[i].heartbeat_port_id);
+            }
+        }
+    }
+}
+
+static void grouping_port_send() {
+    GROUPING_PORT *grouping_port_list = ROBOT_SPECIFIC(report_grouping_port_list);
+    int grouping_port_num = ROBOT_SPECIFIC(report_grouping_port_num);
+    for (int i = 0 ; i < grouping_port_num ; i++)
+    {
+        if (grouping_port_list[i].lib_avail_func() == TRUE) 
+        {
+            int data_len;
+            int element_size = 0;
+            uem_result result;
+            UFMulticastPort_GetSizeOfElement(grouping_port_list[i].multicast_group_id, &element_size);
+            grouping_port_list[i].lib_get_func(&grouping_port_list[i].packet->header->mode_id, grouping_port_list[i].packet->data);
+            UFTimer_GetCurrentTime(THIS_TASK_ID, &(grouping_port_list[i].packet->header->time));
+            result = UFMulticastPort_WriteToBufferByIndex(grouping_port_list[i].multicast_group_id, grouping_port_list[i].multicast_port_id, (unsigned char * ) grouping_port_list[i].packet->header, element_size, THIS_ROBOT_ID, &data_len);
+            if (result != ERR_UEM_NOERROR) 
+            {
+                SEMO_LOG_ERROR("grouping port write error: %x (group %d, port %d)", result, grouping_port_list[i].multicast_group_id, grouping_port_list[i].multicast_port_id);
+            }
+        }
+    }
+}
+
+TASK_GO
+{
+    channel_port_send();
+    multicast_port_send();
+    shared_data_port_send();
+    group_action_port_send();
+    leader_port_send();
+    grouping_port_send();
+}
+
+TASK_WRAPUP
+{
+
+}

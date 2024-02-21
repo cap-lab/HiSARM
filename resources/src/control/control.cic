@@ -1,0 +1,48 @@
+TASK_CODE_BEGIN
+
+static GROUP_CLASS group;
+static LEADER_CLASS leader;
+static EVENT_CLASS event;
+static ACTION_CLASS action;
+static SERVICE_CLASS service;
+static MODE_CLASS mode;
+static RESOURCE_CLASS resource;
+static TIMER_CLASS timer;
+static TRANSITION_CLASS transition;
+
+TASK_INIT
+{
+	SEMO_LOG_INFO("INIT");
+	ROBOT_SPECIFIC(port_init)();
+	ROBOT_SPECIFIC(leader_init)(&leader);
+	ROBOT_SPECIFIC(group_init)(&group, &leader);
+	ROBOT_SPECIFIC(timer_init)(&timer);
+	ROBOT_SPECIFIC(event_init)(&event, &group);
+	ROBOT_SPECIFIC(resource_init)(&resource);
+	ROBOT_SPECIFIC(action_init)(&action, &resource);
+	ROBOT_SPECIFIC(service_init)(&service, &action, &event, &resource, &timer);
+	ROBOT_SPECIFIC(mode_init)(&mode, &service, &leader, &group);
+	ROBOT_SPECIFIC(transition_init)(&transition, &event, &mode, &group);
+}
+
+TASK_GO
+{
+	check_group_allocation_and_run_transition(&transition);
+
+	execute_service(&service);
+	action_task_state_polling(&action);
+	event_polling(&event);
+
+	if (event.event_occured == TRUE)
+	{
+		manage_event(&transition);
+		reset_event(&event);
+	}
+}
+
+TASK_WRAPUP
+{
+	SEMO_LOG_INFO("WRAP UP");
+}
+
+TASK_CODE_END

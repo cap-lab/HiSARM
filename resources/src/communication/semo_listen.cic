@@ -1,0 +1,420 @@
+static void channel_port_init() {
+    CHANNEL_PORT *channel_port_list = ROBOT_SPECIFIC(listen_channel_port_list);
+    int channel_port_num = ROBOT_SPECIFIC(listen_channel_port_num);
+    uem_result result;
+    for (int i = 0 ; i < channel_port_num ; i++)
+    {
+        result = UFPort_Initialize(THIS_TASK_ID, channel_port_list[i].in_port_name, &(channel_port_list[i].in_port_id));
+        ERRIFGOTO(result, _EXIT);
+        result = UFPort_Initialize(THIS_TASK_ID, channel_port_list[i].out_port_name, &(channel_port_list[i].out_port_id));
+        ERRIFGOTO(result, _EXIT);
+_EXIT:
+        if (result != ERR_UEM_NOERROR) 
+        {
+            SEMO_LOG_ERROR("channel_port_init error: %x (in port %s, out port %s)", result, channel_port_list[i].in_port_name, channel_port_list[i].out_port_name);
+        }
+    }
+}
+
+static void multicast_port_init() {
+    MULTICAST_PORT *multicast_port_list = ROBOT_SPECIFIC(listen_multicast_port_list);
+    int multicast_port_num = ROBOT_SPECIFIC(listen_multicast_port_num);
+    uem_result result;
+    for (int i = 0 ; i < multicast_port_num ; i++)
+    {
+        result = UFPort_Initialize(THIS_TASK_ID, multicast_port_list[i].channel_port_name, &(multicast_port_list[i].channel_port_id));
+        ERRIFGOTO(result, _EXIT);
+        result = UFMulticastPort_Initialize(THIS_TASK_ID, multicast_port_list[i].multicast_port_name, &(multicast_port_list[i].multicast_group_id), &(multicast_port_list[i].multicast_port_id));
+        ERRIFGOTO(result, _EXIT);
+        result = UFMulticastPort_Initialize(THIS_TASK_ID, multicast_port_list[i].multicast_out_port_name, &(multicast_port_list[i].multicast_out_group_id), &(multicast_port_list[i].multicast_out_port_id));
+        ERRIFGOTO(result, _EXIT);
+_EXIT:
+        if (result != ERR_UEM_NOERROR) 
+        {
+            SEMO_LOG_ERROR("multicast_port_init error: %x (channel %s, in %s, out %s)", result, multicast_port_list[i].channel_port_name, multicast_port_list[i].multicast_port_name, multicast_port_list[i].multicast_out_port_name);
+        }
+    }
+}
+
+static void shared_data_port_init() {
+    SHARED_DATA_PORT *shared_data_port_list = ROBOT_SPECIFIC(listen_shared_data_port_list);
+    int shared_data_port_num = ROBOT_SPECIFIC(listen_shared_data_port_num);
+    uem_result result;
+    for (int i = 0 ; i < shared_data_port_num ; i++)
+    {
+        result = UFMulticastPort_Initialize(THIS_TASK_ID, shared_data_port_list[i].multicast_port_name, &(shared_data_port_list[i].multicast_group_id), &(shared_data_port_list[i].multicast_port_id));
+        ERRIFGOTO(result, _EXIT);
+        result = UFMulticastPort_Initialize(THIS_TASK_ID, shared_data_port_list[i].multicast_out_port_name, &(shared_data_port_list[i].multicast_out_group_id), &(shared_data_port_list[i].multicast_out_port_id));
+        ERRIFGOTO(result, _EXIT);
+_EXIT:
+        if (result != ERR_UEM_NOERROR) 
+        {
+            SEMO_LOG_ERROR("shared_data_port_init error: %x (in %s, out %s)", result, shared_data_port_list[i].multicast_port_name, shared_data_port_list[i].multicast_out_port_name);
+        }
+    }
+}
+
+static void group_action_port_init() {
+    GROUP_ACTION_PORT *group_action_port_list = ROBOT_SPECIFIC(listen_group_action_port_list);
+    int group_action_port_num = ROBOT_SPECIFIC(listen_group_action_port_num);
+    uem_result result;
+    for (int i = 0 ; i < group_action_port_num ; i++)
+    {
+        result = UFMulticastPort_Initialize(THIS_TASK_ID, group_action_port_list[i].multicast_port_name, &(group_action_port_list[i].multicast_group_id), &(group_action_port_list[i].multicast_port_id));
+        ERRIFGOTO(result, _EXIT);
+        result = UFMulticastPort_Initialize(THIS_TASK_ID, group_action_port_list[i].multicast_out_port_name, &(group_action_port_list[i].multicast_out_group_id), &(group_action_port_list[i].multicast_out_port_id));
+        ERRIFGOTO(result, _EXIT);
+_EXIT:
+        if (result != ERR_UEM_NOERROR) 
+        {
+            SEMO_LOG_ERROR("group_action_port_init error: %x (in %s, out %s)", result, group_action_port_list[i].multicast_port_name, group_action_port_list[i].multicast_out_port_name);
+        }
+    }
+}
+
+static void leader_port_init() {
+    LEADER_PORT *leader_port_list = ROBOT_SPECIFIC(listen_leader_port_list);
+    int leader_port_num = ROBOT_SPECIFIC(listen_leader_port_num);
+    uem_result result;
+    for (int i = 0 ; i < leader_port_num ; i++)
+    {
+        result = UFMulticastPort_Initialize(THIS_TASK_ID, leader_port_list[i].selection_info_port_name, &(leader_port_list[i].selection_info_group_id), &(leader_port_list[i].selection_info_port_id));
+        ERRIFGOTO(result, _SELECTION_INFO_EXIT);
+        result = UFMulticastPort_Initialize(THIS_TASK_ID, leader_port_list[i].selection_info_out_port_name, &(leader_port_list[i].selection_info_out_group_id), &(leader_port_list[i].selection_info_out_port_id));
+        ERRIFGOTO(result, _SELECTION_INFO_EXIT);
+_SELECTION_INFO_EXIT:
+        if (result != ERR_UEM_NOERROR) 
+        {
+            SEMO_LOG_ERROR("leader_port_init error: %x (selection_info %s, selection_info_out %s)", result, leader_port_list[i].selection_info_port_name, leader_port_list[i].selection_info_out_port_name);
+        }
+        result = UFMulticastPort_Initialize(THIS_TASK_ID, leader_port_list[i].heartbeat_port_name, &(leader_port_list[i].heartbeat_group_id), &(leader_port_list[i].heartbeat_port_id));
+        ERRIFGOTO(result, _HEARTBEAT_EXIT);
+        result = UFMulticastPort_Initialize(THIS_TASK_ID, leader_port_list[i].heartbeat_out_port_name, &(leader_port_list[i].heartbeat_out_group_id), &(leader_port_list[i].heartbeat_out_port_id));
+        ERRIFGOTO(result, _HEARTBEAT_EXIT);
+_HEARTBEAT_EXIT:
+        if (result != ERR_UEM_NOERROR) 
+        {
+            SEMO_LOG_ERROR("leader_port_init error: %x (heartbeat %s, heartbeat_out %s)", result, leader_port_list[i].heartbeat_port_name, leader_port_list[i].heartbeat_out_port_name);
+        }
+    }
+}
+
+static void grouping_port_init() {
+    GROUPING_PORT *grouping_port_list = ROBOT_SPECIFIC(listen_grouping_port_list);
+    int grouping_port_num = ROBOT_SPECIFIC(listen_grouping_port_num);
+    uem_result result;
+    for (int i = 0 ; i < grouping_port_num ; i++)
+    {
+        result = UFMulticastPort_Initialize(THIS_TASK_ID, grouping_port_list[i].multicast_port_name, &(grouping_port_list[i].multicast_group_id), &(grouping_port_list[i].multicast_port_id));
+        ERRIFGOTO(result, _EXIT);
+        result = UFMulticastPort_Initialize(THIS_TASK_ID, grouping_port_list[i].multicast_out_port_name, &(grouping_port_list[i].multicast_out_group_id), &(grouping_port_list[i].multicast_out_port_id));
+        ERRIFGOTO(result, _EXIT);
+_EXIT:
+        if (result != ERR_UEM_NOERROR) 
+        {
+            SEMO_LOG_ERROR("grouping_port_init error: %x (in %s, out %s)", result, grouping_port_list[i].multicast_port_name, grouping_port_list[i].multicast_out_port_name);
+        }
+    }
+}
+
+TASK_INIT
+{
+	SEMO_LOG_INFO("%s INIT", THIS_ROBOT_NAME);
+    channel_port_init();
+    multicast_port_init();
+    shared_data_port_init();
+    group_action_port_init();
+    leader_port_init();
+    grouping_port_init();
+}
+
+/////////////////////////////////////
+// go code
+/////////////////////////////////////
+static void channel_port_receive() {
+    CHANNEL_PORT *channel_port_list = ROBOT_SPECIFIC(listen_channel_port_list);
+    int channel_port_num = ROBOT_SPECIFIC(listen_channel_port_num);
+    for (int i = 0 ; i < channel_port_num ; i++)
+    {
+    	if (channel_port_read(channel_port_list[i].in_port_id, channel_port_list[i].buffer, channel_port_list[i].size, FALSE) > 0) 
+    	{
+    	    channel_port_list[i].refreshed = TRUE;
+    	}
+    	if (channel_port_list[i].refreshed == TRUE) 
+    	{
+    	    if (channel_port_write(channel_port_list[i].out_port_id, channel_port_list[i].buffer, channel_port_list[i].size, FALSE) > 0) 
+    	    {
+    	        channel_port_list[i].refreshed = FALSE;
+    	    }
+    	}    	    
+    }
+}
+
+static void multicast_port_receive() {
+    MULTICAST_PORT *multicast_port_list = ROBOT_SPECIFIC(listen_multicast_port_list);
+    int multicast_port_num = ROBOT_SPECIFIC(listen_multicast_port_num);
+
+    int data_len;
+    for (int i = 0 ; i < multicast_port_num ; i++)
+    {
+        int buf_size = 0;
+        int element_size = 0;
+        uem_result result;
+        result = UFMulticastPort_GetMulticastSize(multicast_port_list[i].multicast_group_id, &buf_size);
+        ERRIFGOTO(result, _EXIT);
+        result = UFMulticastPort_ReadFromBuffer(multicast_port_list[i].multicast_group_id, multicast_port_list[i].multicast_port_id, (unsigned char*) multicast_port_list[i].packet[0].header, buf_size, &data_len);
+        ERRIFGOTO(result, _EXIT);
+        result = UFMulticastPort_GetSizeOfElement(multicast_port_list[i].multicast_group_id, &element_size);
+        ERRIFGOTO(result, _EXIT);
+        for(int robotId = 0 ; robotId < SEMO_ROBOT_NUM ; robotId++){
+            if (robotId == THIS_ROBOT_ID) continue;
+            UFMulticastPort_GetNumOfAvailableDataOfElement(multicast_port_list[i].multicast_group_id, robotId, &data_len);
+            if (data_len <= 0) continue;
+            MULTICAST_PACKET *packet = multicast_port_list[i].packet + robotId;
+            if (packet->before_time < packet->header->time)
+            {
+                if (channel_port_write(multicast_port_list[i].channel_port_id, packet->data, multicast_port_list[i].size, FALSE) > 0) 
+                {
+                    packet->before_time = packet->header->time;
+                    result = UFMulticastPort_WriteToBufferByIndex(multicast_port_list[i].multicast_out_group_id, multicast_port_list[i].multicast_out_port_id, (unsigned char*) packet->header, element_size, robotId, &data_len);
+                    if (result != ERR_UEM_NOERROR) 
+                    {
+                        SEMO_LOG_ERROR("multicast_port_receive send error: %x (group %d, port %d)", result, multicast_port_list[i].multicast_group_id, multicast_port_list[i].multicast_port_id);
+                        result = ERR_UEM_NOERROR;
+                    }
+                }
+            }
+        }
+_EXIT:
+        if (result != ERR_UEM_NOERROR) 
+        {
+            SEMO_LOG_ERROR("multicast_port_receive error: %x (group %d, port %d)", result, multicast_port_list[i].multicast_group_id, multicast_port_list[i].multicast_port_id);
+        }
+    }
+}
+
+static void shared_data_port_receive() {
+    SHARED_DATA_PORT *shared_data_port_list = ROBOT_SPECIFIC(listen_shared_data_port_list);
+    int shared_data_port_num = ROBOT_SPECIFIC(listen_shared_data_port_num);
+
+    int data_len;
+    for (int i = 0 ; i < shared_data_port_num ; i++)
+    {
+        int buf_size = 0;
+        int element_size = 0;
+        uem_result result;
+        result = UFMulticastPort_GetMulticastSize(shared_data_port_list[i].multicast_group_id, &buf_size);
+        ERRIFGOTO(result, _EXIT);
+        result = UFMulticastPort_ReadFromBuffer(shared_data_port_list[i].multicast_group_id, shared_data_port_list[i].multicast_port_id, (unsigned char*) shared_data_port_list[i].packet[0].header, buf_size, &data_len);
+        ERRIFGOTO(result, _EXIT);
+        result = UFMulticastPort_GetSizeOfElement(shared_data_port_list[i].multicast_group_id, &element_size);
+        ERRIFGOTO(result, _EXIT);
+        for (int robotId = 0 ; robotId < SEMO_ROBOT_NUM ; robotId++)
+        {
+            if (robotId == THIS_ROBOT_ID) continue;
+            UFMulticastPort_GetNumOfAvailableDataOfElement(shared_data_port_list[i].multicast_group_id, robotId, &data_len);
+            if (data_len <= 0) continue;
+            SHARED_DATA_PACKET *packet = shared_data_port_list[i].packet + robotId;
+            if (packet->before_time < packet->header->time)
+            {
+                shared_data_port_list[i].lib_set_func(robotId, packet->header->time, packet->data);
+                packet->before_time = packet->header->time;
+                result = UFMulticastPort_WriteToBufferByIndex(shared_data_port_list[i].multicast_out_group_id, shared_data_port_list[i].multicast_out_port_id, (unsigned char*) packet->header, element_size, robotId, &data_len);
+                if (result != ERR_UEM_NOERROR) 
+                {
+                    SEMO_LOG_ERROR("shared_data_port_receive send error: %x (group %d, port %d)", result, shared_data_port_list[i].multicast_group_id, shared_data_port_list[i].multicast_port_id);
+                    result = ERR_UEM_NOERROR;
+                }
+            }
+        }
+_EXIT:
+        if (result != ERR_UEM_NOERROR) 
+        {
+            SEMO_LOG_ERROR("shared_data_port_receive error: %x (group %d, port %d)", result, shared_data_port_list[i].multicast_group_id, shared_data_port_list[i].multicast_port_id);
+        }
+    }
+}
+
+static void group_action_port_receive() {
+    GROUP_ACTION_PORT *group_action_port_list = ROBOT_SPECIFIC(listen_group_action_port_list);
+    int group_action_port_num = ROBOT_SPECIFIC(listen_group_action_port_num);
+
+    int data_len;
+    for (int i = 0 ; i < group_action_port_num ; i++)
+    {
+        int buf_size = 0;
+        int element_size = 0;
+        uem_result result;
+        result = UFMulticastPort_GetMulticastSize(group_action_port_list[i].multicast_group_id, &buf_size);
+        ERRIFGOTO(result, _EXIT);
+        result = UFMulticastPort_ReadFromBuffer(group_action_port_list[i].multicast_group_id, group_action_port_list[i].multicast_port_id, (unsigned char*) group_action_port_list[i].packet[0].header, buf_size, &data_len);
+        ERRIFGOTO(result, _EXIT);
+        result = UFMulticastPort_GetSizeOfElement(group_action_port_list[i].multicast_group_id, &element_size);
+        ERRIFGOTO(result, _EXIT);
+        for (int robotId = 0 ; robotId < SEMO_ROBOT_NUM ; robotId++)
+        {
+            if (robotId == THIS_ROBOT_ID) continue;
+            UFMulticastPort_GetNumOfAvailableDataOfElement(group_action_port_list[i].multicast_group_id, robotId, &data_len);
+            if (data_len <= 0) continue;
+            MULTICAST_PACKET *packet = group_action_port_list[i].packet + robotId;
+            if (data_len > 0) 
+            {
+                if (packet->before_time < packet->header->time)
+                {
+                    group_action_port_list[i].lib_set_func(*(int*)packet->data, robotId, packet->header->time);
+                    packet->before_time = packet->header->time;
+                    result = UFMulticastPort_WriteToBufferByIndex(group_action_port_list[i].multicast_out_group_id, group_action_port_list[i].multicast_out_port_id, (unsigned char*) packet->header, element_size, robotId, &data_len);
+                    if (result != ERR_UEM_NOERROR) 
+                    {
+                        SEMO_LOG_ERROR("group_action_port_receive send error: %x (group %d, port %d)", result, group_action_port_list[i].multicast_group_id, group_action_port_list[i].multicast_port_id);
+                        result = ERR_UEM_NOERROR;
+                    }
+                }
+            }
+        }
+_EXIT:
+        if (result != ERR_UEM_NOERROR) 
+        {
+            SEMO_LOG_ERROR("group_action_port_receive error: %x (group %d, port %d)", result, group_action_port_list[i].multicast_group_id, group_action_port_list[i].multicast_port_id);
+        }
+    }
+}
+
+static void leader_port_receive() {
+    LEADER_PORT *leader_port_list = ROBOT_SPECIFIC(listen_leader_port_list);
+    int leader_port_num = ROBOT_SPECIFIC(listen_leader_port_num);
+    int buf_size = 0;
+    int element_size = 0;
+    int data_len = 0;
+    for (int i = 0 ; i < leader_port_num ; i++)
+    {
+        uem_result result;
+        result = UFMulticastPort_GetMulticastSize(leader_port_list[i].selection_info_group_id, &buf_size);
+        ERRIFGOTO(result, _SELECTION_INFO_EXIT);
+        result = UFMulticastPort_GetSizeOfElement(leader_port_list[i].selection_info_group_id, &element_size);
+        ERRIFGOTO(result, _SELECTION_INFO_EXIT);
+        result = UFMulticastPort_ReadFromBuffer(leader_port_list[i].selection_info_group_id, leader_port_list[i].selection_info_port_id, (unsigned char*) leader_port_list[i].selection_info_packet[0].header, buf_size,  &data_len);
+        ERRIFGOTO(result, _SELECTION_INFO_EXIT);
+        if (data_len > 0) 
+        {
+            for (int robotId = 0 ; robotId < SEMO_ROBOT_NUM ; robotId++)
+            {
+                if (robotId == THIS_ROBOT_ID) continue;
+                UFMulticastPort_GetNumOfAvailableDataOfElement(leader_port_list[i].selection_info_group_id, robotId, &data_len);
+                if (data_len <= 0) continue;
+                LEADER_SELECTION_INFO_PACKET *packet = leader_port_list[i].selection_info_packet + robotId;
+                if (packet->before_time < packet->header->time)
+                {
+                    leader_port_list[i].selection_info_set_func(leader_port_list[i].group_id, robotId, packet->header->time, packet->data);
+                    packet->before_time = packet->header->time;
+                    result = UFMulticastPort_WriteToBufferByIndex(leader_port_list[i].selection_info_out_group_id, leader_port_list[i].selection_info_out_port_id, (unsigned char*) packet->header, element_size, robotId, &data_len);
+                    if (result != ERR_UEM_NOERROR) 
+                    {
+                        SEMO_LOG_ERROR("leader_selection_info_port_receive send error: %x (group %d, port %d)", result, leader_port_list[i].selection_info_group_id, leader_port_list[i].selection_info_port_id);
+                        result = ERR_UEM_NOERROR;
+                    }
+                }
+            }
+        }
+_SELECTION_INFO_EXIT:
+        if (result != ERR_UEM_NOERROR) 
+        {
+            SEMO_LOG_ERROR("leader_selection_info_port_receive error: %x (group %d, port %d)", result, leader_port_list[i].selection_info_group_id, leader_port_list[i].selection_info_port_id);
+        }
+        result = UFMulticastPort_GetMulticastSize(leader_port_list[i].heartbeat_group_id, &buf_size);
+        ERRIFGOTO(result, _HEARTBEAT_EXIT);
+        result = UFMulticastPort_GetSizeOfElement(leader_port_list[i].heartbeat_group_id, &element_size);
+        ERRIFGOTO(result, _HEARTBEAT_EXIT);
+        result = UFMulticastPort_ReadFromBuffer(leader_port_list[i].heartbeat_group_id, leader_port_list[i].heartbeat_port_id, (unsigned char*) leader_port_list[i].heartbeat_packet[0].header, buf_size, &data_len);
+        ERRIFGOTO(result, _HEARTBEAT_EXIT);
+        if (data_len > 0) 
+        {
+            for (int robotId = 0 ; robotId < SEMO_ROBOT_NUM ; robotId++)
+            {
+                if (robotId == THIS_ROBOT_ID) continue;
+                UFMulticastPort_GetNumOfAvailableDataOfElement(leader_port_list[i].heartbeat_group_id, robotId, &data_len);
+                if (data_len <= 0) continue;
+                LEADER_HEARTBEAT_PACKET *packet = leader_port_list[i].heartbeat_packet + robotId;
+                if (packet->before_time < packet->header->time)
+                {
+                    leader_port_list[i].heartbeat_set_func(leader_port_list[i].group_id, robotId, packet->header->time, *packet->leader_id);
+                    packet->before_time = packet->header->time;
+                    result = UFMulticastPort_WriteToBufferByIndex(leader_port_list[i].heartbeat_out_group_id, leader_port_list[i].heartbeat_out_port_id, (unsigned char*) packet->header, element_size, robotId, &data_len);
+                    if (result != ERR_UEM_NOERROR) 
+                    {
+                        SEMO_LOG_ERROR("leader_heartbeat_port_receive send error: %x (group %d, port %d)", result, leader_port_list[i].heartbeat_group_id, leader_port_list[i].heartbeat_port_id);
+                        result = ERR_UEM_NOERROR;
+                    }
+                }
+            }
+        }
+_HEARTBEAT_EXIT:
+        if (result != ERR_UEM_NOERROR) 
+        {
+            SEMO_LOG_ERROR("leader_heartbeat_port_receive receive error: %x (group %d, port %d)", result, leader_port_list[i].heartbeat_group_id, leader_port_list[i].heartbeat_port_id);
+        }
+    }
+}
+
+static void grouping_port_receive() {
+    GROUPING_PORT *grouping_port_list = ROBOT_SPECIFIC(listen_grouping_port_list);
+    int grouping_port_num = ROBOT_SPECIFIC(listen_grouping_port_num);
+    int data_len;
+    for (int i = 0 ; i < grouping_port_num ; i++)
+    {
+        int buf_size = 0;
+        int element_size = 0;
+        uem_result result;
+        result = UFMulticastPort_GetMulticastSize(grouping_port_list[i].multicast_group_id, &buf_size);
+        ERRIFGOTO(result, _EXIT);
+        result = UFMulticastPort_ReadFromBuffer(grouping_port_list[i].multicast_group_id, grouping_port_list[i].multicast_port_id, (unsigned char*) grouping_port_list[i].packet[0].header, buf_size, &data_len);
+        ERRIFGOTO(result, _EXIT);
+        result = UFMulticastPort_GetSizeOfElement(grouping_port_list[i].multicast_group_id, &element_size);
+        ERRIFGOTO(result, _EXIT);
+        for (int robotId = 0 ; robotId < SEMO_ROBOT_NUM ; robotId++)
+        {
+            if (robotId == THIS_ROBOT_ID) continue;
+            UFMulticastPort_GetNumOfAvailableDataOfElement(grouping_port_list[i].multicast_group_id, robotId, &data_len);
+            if (data_len <= 0) continue;
+            GROUPING_PACKET *packet = grouping_port_list[i].packet + robotId;
+            if (packet->before_time < packet->header->time)
+            {
+                grouping_port_list[i].lib_set_func(packet->header->mode_id, robotId, packet->header->time, packet->data);
+                packet->before_time = packet->header->time;
+                result = UFMulticastPort_WriteToBufferByIndex(grouping_port_list[i].multicast_out_group_id, grouping_port_list[i].multicast_out_port_id, (unsigned char*) packet->header, element_size, robotId, &data_len);
+                if (result != ERR_UEM_NOERROR) 
+                {
+                    SEMO_LOG_ERROR("grouping_port_receive send error: %x (group %d, port %d)", result, grouping_port_list[i].multicast_group_id, grouping_port_list[i].multicast_port_id);
+                    result = ERR_UEM_NOERROR;
+                }
+            }
+        }
+        result = ERR_UEM_NOERROR;
+_EXIT:
+        if (result != ERR_UEM_NOERROR) 
+        {
+            SEMO_LOG_ERROR("grouping_port_receive receive error: %x (group %d, port %d)", result, grouping_port_list[i].multicast_group_id, grouping_port_list[i].multicast_port_id);
+        }
+    }
+}
+
+TASK_GO
+{
+    channel_port_receive();
+    multicast_port_receive();
+    shared_data_port_receive();
+    group_action_port_receive();
+    leader_port_receive();
+    grouping_port_receive();
+}
+
+/////////////////////////////////////
+// wrapup code
+/////////////////////////////////////
+
+TASK_WRAPUP
+{
+
+}
+
+TASK_CODE_END
