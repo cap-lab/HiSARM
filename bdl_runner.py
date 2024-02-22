@@ -184,11 +184,12 @@ def getMatchedRobotFromDirName(dirName, robotList):
 def getUploadInfo(device_info, device_name, db_handle, yaml_info):
     if device_info['UploadInfo']['type'] == "ssh":
         ip_address = device_info['UploadInfo']['address']['ip']
+        port =  device_info['UploadInfo']['address']['port']
         user_name = device_info['UploadInfo']['address']['username']
         compile_option = getCompileOptionDB(device_name, db_handle, yaml_info)
         pre_run_commands = compile_option['PreRunCommands']
         post_run_commands = compile_option['PostRunCommands']
-        return ip_address, user_name, pre_run_commands, post_run_commands
+        return ip_address, port, user_name, pre_run_commands, post_run_commands
 
 
 def getInfoOfUploadTarget(robotName, device_name, db_handle, yaml_info):
@@ -206,17 +207,18 @@ def getInfoOfUploadSimulation(simulationDeviceName, db_handle, yaml_info):
 
 
 class BinaryUploader:
-    def __init__(self, dir_name, target, ip_address, user_name):
+    def __init__(self, dir_name, target, ip_address, user_name, port):
         self.dir_name = dir_name
         self.target = target
         self.ip_address = ip_address
         self.user_name = user_name
+        self.port = port
 
 
 def uploadSingleBinary(binary_uploader):
     print("upload binary start: " + binary_uploader.dir_name + "," + binary_uploader.ip_address)
     ssh_manager = SSHManager()
-    ssh_manager.create_ssh_client(binary_uploader.ip_address, binary_uploader.user_name)
+    ssh_manager.create_ssh_client(binary_uploader.ip_address, binary_uploader.user_name, binary_uploader.port)
     #ssh_manager.create_ssh_client("192.168.50.5")
     out = ssh_manager.send_command("mkdir " + UPLOAD_TARGET_DIR) 
     if binary_uploader.target == "OS":
@@ -228,9 +230,10 @@ def uploadSingleBinary(binary_uploader):
     print("upload binary end: " + binary_uploader.dir_name)
    
 
-def updateUploadedRobotAddrMap(uploaded_robot_addr_map, ip_address, user_name, pre_run_commands, post_run_commands):
+def updateUploadedRobotAddrMap(uploaded_robot_addr_map, ip_address, port, user_name, pre_run_commands, post_run_commands):
     if ip_address not in uploaded_robot_addr_map:
         exec_info_map = {}
+        exec_info_map['port'] = port
         exec_info_map['username'] = user_name
         exec_info_map['PreRunCommands'] = pre_run_commands
         exec_info_map['PostRunCommands'] = post_run_commands
@@ -249,10 +252,10 @@ def makeBinaryUploaderFromSimulationDeviceList(db_handle, yaml_info):
             os.chdir(file_name)
             target = checkBuildTarget()
             # file_name is a simulation device name
-            ip_address, user_name, pre_run_commands, post_run_commands = getInfoOfUploadSimulation(file_name, db_handle, yaml_info)
-            binary_uploader = BinaryUploader(file_name, target, ip_address, user_name)
+            ip_address, port, user_name, pre_run_commands, post_run_commands = getInfoOfUploadSimulation(file_name, db_handle, yaml_info)
+            binary_uploader = BinaryUploader(file_name, target, ip_address, user_name, port)
             binary_uploader_list.append(binary_uploader)
-            uploaded_robot_addr_map = updateUploadedRobotAddrMap(uploaded_robot_addr_map, ip_address, user_name, pre_run_commands, post_run_commands)
+            uploaded_robot_addr_map = updateUploadedRobotAddrMap(uploaded_robot_addr_map, ip_address, port, user_name, pre_run_commands, post_run_commands)
             os.chdir("..")
     return binary_uploader_list, uploaded_robot_addr_map
 
@@ -265,10 +268,10 @@ def makeBinaryUploaderFromRobotList(db_handle, robotList, yaml_info):
             os.chdir(file_name)
             robot_name = getMatchedRobotFromDirName(file_name, robotList)
             target = checkBuildTarget()
-            ip_address, user_name, pre_run_commands, post_run_commands = getInfoOfUploadTarget(robot_name, file_name, db_handle, yaml_info)
-            binary_uploader = BinaryUploader(file_name, target, ip_address, user_name)
+            ip_address, port, user_name, pre_run_commands, post_run_commands = getInfoOfUploadTarget(robot_name, file_name, db_handle, yaml_info)
+            binary_uploader = BinaryUploader(file_name, target, ip_address, user_name, port)
             binary_uploader_list.append(binary_uploader)
-            uploaded_robot_addr_map = updateUploadedRobotAddrMap(uploaded_robot_addr_map, ip_address, user_name, pre_run_commands, post_run_commands)
+            uploaded_robot_addr_map = updateUploadedRobotAddrMap(uploaded_robot_addr_map, ip_address, port, user_name, pre_run_commands, post_run_commands)
             os.chdir("..")
     return binary_uploader_list, uploaded_robot_addr_map
 
@@ -358,6 +361,7 @@ print ("### BIO SW Upload is done! ###############")
 
 # "ip" 
 # "username"
+# "port"
 # "PreRunCommands"
 # "PostRunCommands"
 

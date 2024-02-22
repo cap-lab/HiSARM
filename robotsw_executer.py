@@ -62,7 +62,7 @@ def main():
     
     for addr,info in robot_address_map.items():
         ssh_manager_map[addr] = SSHManager()
-        ssh_manager_map[addr].create_ssh_client(addr, info['username'])
+        ssh_manager_map[addr].create_ssh_client(addr, info['username'], info['port'])
     
     print ("### Connected to BIO Robots! ########")
     

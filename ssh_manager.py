@@ -16,12 +16,12 @@ class SSHManager:
     def __init__(self):
         self.ssh_client = None
 
-    def create_ssh_client(self, hostname, username="pi"):
+    def create_ssh_client(self, hostname, username="pi", port=22):
         """Create SSH client session to remote server"""
         if self.ssh_client is None:
             self.ssh_client = paramiko.SSHClient()
             self.ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            self.ssh_client.connect(hostname, username=username)
+            self.ssh_client.connect(hostname, port=port, username=username)
         else:
             print("SSH client session exist.")
 
