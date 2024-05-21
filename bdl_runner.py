@@ -35,7 +35,6 @@ def getLatestDirectory(generatedDirPath, projectName):
         if os.path.isdir(file_path) and file_name.endswith(projectName):
             written_time = os.path.getctime(file_path)
             file_name_time_list.append((file_name, written_time))
-
     sorted_file_list = sorted(file_name_time_list, key=lambda x: x[1], reverse=True)
     return sorted_file_list[0][0]
 
@@ -68,6 +67,7 @@ def getCompileOptionDB(device_name, db_handle, yaml_info):
         simulDevice_collection = db_handle['SimulationDevice']
         simul_device = simulDevice_collection.find_one({"DeviceId": device_name}) 
         archi_name = simul_device['Architecture']
+        compile_option = db_handle['CompileOption'].find_one({"DeviceName": archi_name, "Simulation" : True})
 ####################################
     else: # real robot
         robotImpl_collection = db_handle['RobotImpl']
@@ -76,7 +76,7 @@ def getCompileOptionDB(device_name, db_handle, yaml_info):
         #robot_impl = robotImpl_collection.find_one({"RobotId": robot_name})
         #robot = robot_impl['RobotClass']
         #robot['Architecture']['architectureList']
-    compile_option = db_handle['CompileOption'].find_one({"DeviceName": archi_name})
+        compile_option = db_handle['CompileOption'].find_one({"DeviceName": archi_name, "Simulation" : False})
     return compile_option
 
 def setBuildEnvironment(device_name, db_handle, yaml_info):
@@ -98,7 +98,7 @@ def setBuildEnvironment(device_name, db_handle, yaml_info):
 
 def buildOSTarget(device_name, db_handle, yaml_info):
     compile_option = setBuildEnvironment(device_name, db_handle, yaml_info)
-
+    
     include_list = compile_option['IncludePaths']
     library_list = compile_option['LibraryPaths']
     extra_cxxflags = compile_option['ExtraCXXFlags']
@@ -134,7 +134,7 @@ def buildOSTarget(device_name, db_handle, yaml_info):
        
     runCommand("make -j")
 
-def buildNonOSTarget():
+def buildNonOSTarget(device_name, db_handle, yaml_info):
     setBuildEnvironment(device_name, db_handle, yaml_info)
     runCommand("make -j")
 
@@ -230,11 +230,12 @@ def uploadSingleBinary(binary_uploader):
     print("upload binary end: " + binary_uploader.dir_name)
    
 
-def updateUploadedRobotAddrMap(uploaded_robot_addr_map, ip_address, port, user_name, pre_run_commands, post_run_commands):
+def updateUploadedRobotAddrMap(uploaded_robot_addr_map, ip_address, port, user_name, pre_run_commands, post_run_commands, device_name):
     if ip_address not in uploaded_robot_addr_map:
         exec_info_map = {}
         exec_info_map['port'] = port
         exec_info_map['username'] = user_name
+        exec_info_map['deviceName'] =device_name 
         exec_info_map['PreRunCommands'] = pre_run_commands
         exec_info_map['PostRunCommands'] = post_run_commands
         uploaded_robot_addr_map[ip_address] = exec_info_map
@@ -255,7 +256,7 @@ def makeBinaryUploaderFromSimulationDeviceList(db_handle, yaml_info):
             ip_address, port, user_name, pre_run_commands, post_run_commands = getInfoOfUploadSimulation(file_name, db_handle, yaml_info)
             binary_uploader = BinaryUploader(file_name, target, ip_address, user_name, port)
             binary_uploader_list.append(binary_uploader)
-            uploaded_robot_addr_map = updateUploadedRobotAddrMap(uploaded_robot_addr_map, ip_address, port, user_name, pre_run_commands, post_run_commands)
+            uploaded_robot_addr_map = updateUploadedRobotAddrMap(uploaded_robot_addr_map, ip_address, port, user_name, pre_run_commands, post_run_commands, file_name)
             os.chdir("..")
     return binary_uploader_list, uploaded_robot_addr_map
 
@@ -271,7 +272,7 @@ def makeBinaryUploaderFromRobotList(db_handle, robotList, yaml_info):
             ip_address, port, user_name, pre_run_commands, post_run_commands = getInfoOfUploadTarget(robot_name, file_name, db_handle, yaml_info)
             binary_uploader = BinaryUploader(file_name, target, ip_address, user_name, port)
             binary_uploader_list.append(binary_uploader)
-            uploaded_robot_addr_map = updateUploadedRobotAddrMap(uploaded_robot_addr_map, ip_address, port, user_name, pre_run_commands, post_run_commands)
+            uploaded_robot_addr_map = updateUploadedRobotAddrMap(uploaded_robot_addr_map, ip_address, port, user_name, pre_run_commands, post_run_commands, robot_name)
             os.chdir("..")
     return binary_uploader_list, uploaded_robot_addr_map
 
@@ -308,9 +309,10 @@ if platform.system() == "Windows":
 else:
     class_path_separator = ":"
 
-project_name = sys.argv[2].rstrip('.bdl')
+project_name = sys.argv[2][:-4]
 
 print("arguments: " + sys.argv[1] + "," + sys.argv[2])
+print("project_name: " + project_name)
 
 
 # remove old robot address file
