@@ -3,6 +3,6 @@
 
 #include "semo_timer.h"
 
-void ${robotId}_timer_init(TIMER_CLASS *timer);
+void ${robotId}_timer_init(int control_task_id, TIMER_CLASS *timer);
 
 #endif

@@ -16,6 +16,6 @@ typedef enum _ACTION_TYPE_ID {
 </#list>
 } ${robotId}_ACTION_TYPE_ID;
 
-void ${robotId}_action_init(ACTION_CLASS *action_class, RESOURCE_CLASS *resource_class);
+void ${robotId}_action_init(int control_task_id, ACTION_CLASS *action_class, RESOURCE_CLASS *resource_class);
 
 #endif

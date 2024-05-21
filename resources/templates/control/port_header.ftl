@@ -43,5 +43,5 @@ extern PORT ${robotId}_port_of_leader;
 extern PORT ${robotId}_port_of_grouping_mode;
 extern PORT ${robotId}_port_of_grouping_result;
 
-void ${robotId}_port_init();
+void ${robotId}_port_init(int control_task_id);
 #endif

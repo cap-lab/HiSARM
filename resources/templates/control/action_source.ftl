@@ -41,12 +41,12 @@ ACTION_TASK ${robotId}_action_task_list[${actionTaskList?size}] = {
 </#list>
 };
 
-void ${robotId}_action_init(ACTION_CLASS *action_class, RESOURCE_CLASS *resource_class)
+void ${robotId}_action_init(int control_task_id, ACTION_CLASS *action_class, RESOURCE_CLASS *resource_class)
 {
     SEMO_LOG_INFO("action init");
     action_class->action_task_list = ${robotId}_action_task_list;
     action_class->action_task_list_size = ${actionTaskList?size};
-    action_class->control_task_id = CONTROL_TASK_ID;
+    action_class->control_task_id = control_task_id;
     action_class->resource_class = resource_class;
     action_class->set_group_action_control = l_${robotId}_group_action_set_group_action_control;
     action_class->get_group_action_control = l_${robotId}_group_action_get_group_action_control;
