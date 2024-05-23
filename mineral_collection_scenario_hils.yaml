@@ -1,0 +1,32 @@
+projectName: mineral_collection_scenario_simulation
+taskServerPrefix: ./SWComponentLib/
+jarDirectory: ./HOPES/JavaLibraries/
+translatorDirectory: ./HOPES/UEMTranslator/
+strategyList:
+leaderSelectionAlgorithm: IdBased
+groupingAlgorithm: STA
+environment: simulation
+environmentInfo:
+  - ip:
+    port:
+simulationClient:
+    allocationMethod: distribute
+    clientList:
+      - id: Burger_1
+        robotMappingInfo:
+      - id: Burger_2
+        robotMappingInfo:
+      - id: Burger_3
+        robotMappingInfo:
+      - id: Burger_5
+        robotMappingInfo:
+      - id: Burger_6
+        robotMappingInfo:
+variableList:
+robotList:
+dbInfo:
+  - ip:
+    port:
+    dbName:
+    userName:
+    password:

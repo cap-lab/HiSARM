@@ -1,0 +1,68 @@
+{
+   Searcher : EPuckSim epuck[5]
+}
+
+SearchMineral {
+    found, result = searchMineral()
+    if (result == "SUCCESS") {
+        throw MISSION_CLEAR broadcast
+    } else if (found == "SUCCESS") {
+		throw MINERAL_FIND
+	}
+}
+
+CollectMineral {
+    result = collectMineral()
+    if (result == "SUCCESS") {
+        throw COLLECT
+    }
+}
+
+BackToBase {
+    result = backToBase()
+    if (result == "SUCCESS")
+        throw ARRIVED
+}
+
+PutMineral {
+    result = putMineral()
+    if (result == "SUCCESS") {
+        throw PUT
+    }
+}
+
+Mode.SearchMineral {
+    services:
+        SearchMineral
+}
+
+Mode.CollectMineral {
+    services:
+        CollectMineral
+}
+
+Mode.BackToBase {
+    services:
+        BackToBase
+}
+
+Mode.PutMineral {
+    services:
+        PutMineral
+}
+
+Main.Searcher {
+    case(SearchMineral):
+        catch(MISSION_CLEAR): mode = FINISH
+		catch(MINERAL_FIND): mode = CollectMineral
+	case(CollectMineral): 
+        catch(MISSION_CLEAR): mode = FINISH
+		catch(COLLECT): mode = BackToBase
+    case(BackToBase):
+        catch(MISSION_CLEAR): mode = FINISH
+        catch(ARRIVED): mode = PutMineral
+	case(PutMineral): 
+        catch(MISSION_CLEAR): mode = FINISH
+		catch(PUT): mode = SearchMineral
+    default: mode = SearchMineral
+}

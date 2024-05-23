@@ -1,0 +1,167 @@
+{
+   OnSiteResponse : EPuckSim epuck[7]
+   EvacuationSupport : P3DXSim p3dx[3]
+}
+
+MoveToTarget(TARGET_POSITION) {
+    result = moveTo(TARGET_POSITION)
+    if (result == "SUCCESS") {
+        throw ROOM_ARRIVED
+    }
+} repeat(5 SEC)
+
+SearchItem(ROOM) {
+    result = searchItem(ROOM)
+    if (result == "SUCCESS")
+        throw SEARCHED broadcast
+} repeat(5 SEC)
+
+MakeEvacuationRoute {
+    makeEvacuationPath()
+}
+
+MonitorEnvironment {
+    report()
+} repeat(1 SEC)
+
+Wait {
+    detected = detectFire()
+    if(detected == "SUCCESS") {
+        throw FIRE broadcast
+    }
+} repeat(1 SEC)
+
+RemoteControl {
+	remoteControl() 
+}
+
+GetCommand {
+	m = getModeTransferCommand()
+	if (m == "REMOTE_CONTROL") {
+	    throw REMOTE broadcast
+    } else if (m == "AUTO_CONTROL") {
+		throw AUTO broadcast
+    }
+} repeat(1 SEC)
+
+ExtinguishFire(TARGET) {
+    result = putOutFire(TARGET)
+    if (result == "SUCCESS") {
+        throw EXTINGUISHED broadcast
+    }
+}
+
+Exit {
+    result = escape()
+    if (result == "SUCCESS") {
+        throw ARRIVED
+    }
+}
+
+MoveAisle {
+    throw SEARCHED broadcast
+    result = moveTo("BASE")
+    if (result == "SUCCESS") {
+        throw AISLE_ARRIVED
+    }
+}
+
+Mode.Divide {
+    group(Room1, min=2): ModeTransition.Distribute("ROOM1")
+    group(Room2, min=3): ModeTransition.Distribute("ROOM2")
+    group(Room3, min=2): ModeTransition.Distribute("ROOM3")
+    services:
+        MonitorEnvironment
+}
+
+Mode.RoomCheck(AREA) {
+    group(Search, min=1): ModeTransition.SearchArea(AREA)
+    group(Extinguish, min=1): ModeTransition.Extinguish(AREA)
+    services:
+        MonitorEnvironment
+}
+
+Mode.Search(AREA) { 
+    services:
+        SearchItem(AREA)
+}
+
+Mode.Move(TARGET) {
+    services:
+        MoveToTarget(TARGET)
+        MonitorEnvironment
+}
+
+Mode.Wait {
+    services:
+        Wait
+		GetCommand
+}
+
+Mode.RemoteControl {
+	services:
+		RemoteControl
+		GetCommand
+}
+
+Mode.Extinguish(AREA) {
+    services:
+        ExtinguishFire(AREA)
+}
+
+Mode.Exit {
+    services:
+       Exit 
+}
+
+Mode.SetupEvaucationPath {
+    services:
+        MakeEvacuationRoute
+}
+
+Mode.MoveToAisle { 
+    services:
+        MoveAisle
+}
+
+Main.OnSiteResponse {
+    case(Wait):
+        catch(FIRE): mode = Divide
+		catch(REMOTE): mode = RemoteControl
+	case(RemoteControl):
+		catch(AUTO): mode = Wait
+    case(Divide):
+        catch(AISLE_ARRIVED): mode = Exit
+    case(Exit):
+        catch(ARRIVED): mode = FINISH
+    default: mode = Wait
+}
+
+ModeTransition.Distribute(TARGET) {
+    case(Move):
+        catch(SEARCHED): mode = MoveToAisle
+        catch(ROOM_ARRIVED): mode = RoomCheck(TARGET)
+    case(RoomCheck):
+        catch(SEARCHED): mode = MoveToAisle
+        catch(EXTINGUISHED): mode = Search(TARGET)
+    case(Search):
+        catch(SEARCHED): mode = MoveToAisle
+    default: mode = Move(TARGET)
+}
+
+ModeTransition.SearchArea(AREA) {
+    default: mode = Search(AREA)
+}
+
+ModeTransition.Extinguish(AREA) {
+    default: mode = Extinguish(AREA)
+}
+
+Main.EvacuationSupport {
+    case(Wait):
+        catch(FIRE): mode = SetupEvaucationPath
+		catch(REMOTE): mode = RemoteControl
+	case(RemoteControl):
+		catch(AUTO): mode = Wait
+    default: mode = Wait
+}

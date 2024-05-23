@@ -1,0 +1,28 @@
+projectName: valuable_retrieval_scenario
+taskServerPrefix: ./SWComponentLib/
+jarDirectory: ./HOPES/JavaLibraries/
+translatorDirectory: ./HOPES/UEMTranslator/
+strategyList:
+  - teamName: OnSiteResponse
+    robotClass: EPuckSim
+    actionName: searchItem
+    strategyId: EPuckSim_searchItemRandomWithoutMap
+leaderSelectionAlgorithm: IdBased
+groupingAlgorithm: STA
+environment: simulation
+environmentInfo:
+  - ip:
+    port:
+simulationClient:
+    allocationMethod: distribute
+    clientList:
+      - id: notebook
+        robotMappingInfo:
+variableList:
+robotList:
+dbInfo:
+  - ip:
+    port:
+    dbName:
+    userName:
+    password:

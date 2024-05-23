@@ -1,0 +1,23 @@
+projectName: mineral_collection_scenario_real_robot
+taskServerPrefix: ./SWComponentLib/
+jarDirectory: ./HOPES/JavaLibraries/
+translatorDirectory: ./HOPES/UEMTranslator/
+strategyList:
+leaderSelectionAlgorithm: IdBased
+groupingAlgorithm: STA
+environment: deployment
+environmentInfo:
+simulationClient:
+robotList:
+   - Burger_1
+   - Burger_2
+   - Burger_3
+   - Burger_5
+   - Burger_6
+variableList:
+dbInfo:
+  - ip:
+    port:
+    dbName:
+    userName:
+    password:

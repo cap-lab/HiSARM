@@ -1,0 +1,50 @@
+projectName: valuable_retrieval_scenario
+taskServerPrefix: ./SWComponentLib/
+jarDirectory: ./HOPES/JavaLibraries/
+translatorDirectory: ./HOPES/UEMTranslator/
+strategyList:
+leaderSelectionAlgorithm: IdBased
+groupingAlgorithm: STA
+environment: simulation
+environmentInfo:
+  - ip:
+    port:
+simulationClient:
+    allocationMethod: designate
+    clientList:
+      - id: agx_xavier1
+        robotMappingInfo:
+          - type: P3DXSim
+            num : 3
+      - id: orin_nano1
+        robotMappingInfo:
+          - type: EPuckSim
+            num : 1
+      - id: orin_nano2
+        robotMappingInfo:
+          - type: EPuckSim
+            num : 1
+      - id: orin_nano3
+        robotMappingInfo:
+          - type: EPuckSim
+            num : 1
+      - id: orin_nano4
+        robotMappingInfo:
+          - type: EPuckSim
+            num : 1
+      - id: xavier_nx1
+        robotMappingInfo:
+          - type: EPuckSim
+            num : 1
+      - id: notebook
+        robotMappingInfo:
+          - type: EPuckSim
+            num : 2
+variableList:
+robotList:
+dbInfo:
+  - ip:
+    port:
+    dbName:
+    userName:
+    password:

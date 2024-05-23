@@ -1,0 +1,67 @@
+{
+   OnSiteResponse : EPuckSim epuck[20]
+}
+
+MoveToTarget(TARGET_POSITION) {
+    result = moveTo(TARGET_POSITION)
+    if (result == "SUCCESS") {
+        throw ROOM_ARRIVED
+    }
+}
+
+MonitorEnvironment {
+    report()
+} repeat(1 SEC)
+
+Wait {
+    detected = detectFire()
+    if(detected == "SUCCESS") {
+        throw FIRE broadcast
+    }
+} repeat(1 SEC)
+
+WalkAround(ROOM) {
+	result = walkAround(ROOM)
+    if(result == "SUCCESS") {
+		throw SUCCESS broadcast
+	}
+}
+
+Mode.Divide {
+    group(Room1, min=1): ModeTransition.EXPLORE("ROOM1")
+    group(Room2, min=2): ModeTransition.EXPLORE("ROOM2")
+    group(Room3, min=1): ModeTransition.EXPLORE("ROOM3")
+    services:
+        MonitorEnvironment
+}
+
+Mode.RoomCheck(AREA) {
+    services:
+        MonitorEnvironment
+		WalkAround(AREA)
+}
+
+Mode.Move(TARGET) {
+    services:
+        MoveToTarget(TARGET)
+        MonitorEnvironment
+}
+
+Mode.Wait {
+    services:
+        Wait
+}
+
+Main.OnSiteResponse {
+    case(Wait):
+        catch(FIRE): mode = Divide
+    case(Divide):
+        catch(SUCCESS): mode = FINISH
+    default: mode = Wait
+}
+
+ModeTransition.EXPLORE(TARGET) {
+    case(Move):
+        catch(ROOM_ARRIVED): mode = RoomCheck(TARGET)
+    default: mode = Move(TARGET)
+}
