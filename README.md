@@ -1,4 +1,4 @@
-# SACRED (Specification, Automatic Code generation, and REtargetable Deployment for multi-robot systems)
+# HiSARM (High-level Specification, Automatic code generation, and Retargetable deployment for Multi-robot systems)
 
 ## Prerequisite
 
@@ -29,7 +29,7 @@ ant
 ## Execution
 
 
-### Run SACRED on Visual Studio Code
+### Run HiSARM on Visual Studio Code
 
   1. Run Visual Studio Code in the root directory of this repository.
 
@@ -39,10 +39,10 @@ ant
 
   4. After the execution is done, Select "Execute Robots" and press F5 button.
 
-### Run SACRED on Command-line
+### Run HiSARM on Command-line
 
 
-- To run SACRED, the following parameters are needed.
+- To run HiSARM, the following parameters are needed.
 
 ```
 python3 bdl_runner.py <yaml file path> <bdl file path>
@@ -51,10 +51,10 @@ python3 bdl_runner.py <yaml file path> <bdl file path>
 
 where
   - `<yaml file path>` : Framework/Application configuration file
-  - `<bdl file path>` : SACRED script file
+  - `<bdl file path>` : HiSARM script file
 
 
-- Example commands of running SACRED
+- Example commands of running HiSARM
 ```
 python3 bdl_runner.py valuable_retrieval_scenario.yaml valuable_retrieval_scenario.bdl
 ```
