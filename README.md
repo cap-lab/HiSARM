@@ -5,7 +5,7 @@
 - Java 8 or higher
 - ant
 - python 3.8 or higher
-- pymongo
+- ibmcloudant
 - pyyaml
 - paramiko
 - scp
