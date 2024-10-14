@@ -7,7 +7,9 @@ import platform
 import yaml
 import pickle
 
-from pymongo import MongoClient
+from ibm_cloud_sdk_core.authenticators import BasicAuthenticator
+from ibmcloudant.cloudant_v1 import CloudantV1
+
 from threading import Thread
 
 from ssh_manager import SSHManager
@@ -61,22 +63,18 @@ def runCommand(command):
     if ret != 0:
         raise Exception("Command - " + command) 
 
-
-def getCompileOptionDB(device_name, db_handle, yaml_info):
+def getCompileOptionDB(device_name, db_handle : CloudantV1, yaml_info):
     if "environment" in yaml_info and yaml_info['environment'] == "simulation":  # simulation
-        simulDevice_collection = db_handle['SimulationDevice']
-        simul_device = simulDevice_collection.find_one({"DeviceId": device_name}) 
-        archi_name = simul_device['Architecture']
-        compile_option = db_handle['CompileOption'].find_one({"DeviceName": archi_name, "Simulation" : True})
+        response = db_handle.post_find(db='hisarm-simulationdevice', selector = {"DeviceId" : {"$eq" : device_name}}).get_result()
+        archi_name = response['docs'][0]['Architecture']
+        response = db_handle.post_find(db='hisarm-compileoption', selector={ "$and" : [{"DeviceName" : {"$eq" : archi_name}}, {"Simulation": {"$eq" : True}}]} ).get_result()
+        print(response['docs'])
 ####################################
     else: # real robot
-        robotImpl_collection = db_handle['RobotImpl']
         robot_name = getMatchedRobotFromDirName(device_name, yaml_info['robotList'])
         archi_name = device_name[len(robot_name)+1:]
-        #robot_impl = robotImpl_collection.find_one({"RobotId": robot_name})
-        #robot = robot_impl['RobotClass']
-        #robot['Architecture']['architectureList']
-        compile_option = db_handle['CompileOption'].find_one({"DeviceName": archi_name, "Simulation" : False})
+        response = db_handle.post_find(db='hisarm-compileoption', selector={ "$and" : [{"DeviceName" : {"$eq" : archi_name}}, {"Simulation": {"$eq" : False}}]} ).get_result()
+    compile_option = response['docs'][0]
     return compile_option
 
 def setBuildEnvironment(device_name, db_handle, yaml_info):
@@ -162,15 +160,13 @@ def getYamlConfig(yamlPath):
         yaml_config = yaml.load(f, Loader=yaml.FullLoader)
     return yaml_config
 
-def getMongoDB(yamlInfo):
-    mongo_db_info = yamlInfo['dbInfo'][0] 
-    client = MongoClient(host=mongo_db_info['ip'], port=mongo_db_info['port'], username=mongo_db_info['userName'], password=mongo_db_info['password'], authSource=mongo_db_info['dbName']) 
-    db_handle = client[mongo_db_info['dbName']]
-    #collection = db_handle['RobotImpl']
-    #print(collection.find_one())
+def getCouchDB(yamlInfo) -> CloudantV1:
+    couch_db_info = yamlInfo['dbInfo'][0]
+    authenticator = BasicAuthenticator(username=couch_db_info['userName'], password=couch_db_info['password'])
+    service = CloudantV1(authenticator=authenticator)
+    service.set_service_url("http://{0}:{1}".format(couch_db_info['ip'], couch_db_info['port']))
 
-    return db_handle
-
+    return service
 
 def getMatchedRobotFromDirName(dirName, robotList):
     matched_name = None
@@ -191,19 +187,18 @@ def getUploadInfo(device_info, device_name, db_handle, yaml_info):
         post_run_commands = compile_option['PostRunCommands']
         return ip_address, port, user_name, pre_run_commands, post_run_commands
 
-
 def getInfoOfUploadTarget(robotName, device_name, db_handle, yaml_info):
-    robotImpl_collection = db_handle['RobotImpl']
-    robot_comm = robotImpl_collection.find_one({"RobotId": robotName})
-
+    response = db_handle.post_find(db='hisarm-robotimpl', selector = {"RobotId" : {"$eq" : robotName}}).get_result()
+    robot_comm = response['docs'][0]
     return getUploadInfo(robot_comm, device_name, db_handle, yaml_info)
 
 
 def getInfoOfUploadSimulation(simulationDeviceName, db_handle, yaml_info):
-    simulDevice_collection = db_handle['SimulationDevice']
-    simul_comm = simulDevice_collection.find_one({"DeviceId": simulationDeviceName})
+    response = db_handle.post_find(db='hisarm-simulationdevice', selector = {"DeviceId" : {"$eq" : simulationDeviceName}}).get_result()
+    simul_comm = response['docs'][0]
 
     return getUploadInfo(simul_comm, simulationDeviceName, db_handle, yaml_info)
+
 
 
 class BinaryUploader:
@@ -254,6 +249,7 @@ def makeBinaryUploaderFromSimulationDeviceList(db_handle, yaml_info):
             target = checkBuildTarget()
             # file_name is a simulation device name
             ip_address, port, user_name, pre_run_commands, post_run_commands = getInfoOfUploadSimulation(file_name, db_handle, yaml_info)
+
             binary_uploader = BinaryUploader(file_name, target, ip_address, user_name, port)
             binary_uploader_list.append(binary_uploader)
             uploaded_robot_addr_map = updateUploadedRobotAddrMap(uploaded_robot_addr_map, ip_address, port, user_name, pre_run_commands, post_run_commands, file_name)
@@ -270,6 +266,7 @@ def makeBinaryUploaderFromRobotList(db_handle, robotList, yaml_info):
             robot_name = getMatchedRobotFromDirName(file_name, robotList)
             target = checkBuildTarget()
             ip_address, port, user_name, pre_run_commands, post_run_commands = getInfoOfUploadTarget(robot_name, file_name, db_handle, yaml_info)
+
             binary_uploader = BinaryUploader(file_name, target, ip_address, user_name, port)
             binary_uploader_list.append(binary_uploader)
             uploaded_robot_addr_map = updateUploadedRobotAddrMap(uploaded_robot_addr_map, ip_address, port, user_name, pre_run_commands, post_run_commands, robot_name)
@@ -329,10 +326,11 @@ process.wait()
 if process.returncode != 0:
     print("Error is occurred during code generation!")
     sys.exit(1)
+
 print ("### BIO SW Code generation is done! ######")
 
 yaml_info = getYamlConfig(sys.argv[1])
-db_handle = getMongoDB(yaml_info)
+db_handle = getCouchDB(yaml_info)
 
 print ("### BIO SW Build is started! #############")
 target_project = getLatestDirectory(generated_dir_path, project_name)
@@ -342,6 +340,7 @@ project_dir_path = os.path.join(generated_dir_path, target_project)
 buildAllDevices(project_dir_path, yaml_info, db_handle)
 print ("### BIO SW Build is done! ################")
 
+#sys.exit(0)
 
 print ("### BIO SW Upload is started! ############")
 

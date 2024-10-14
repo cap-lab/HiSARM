@@ -1,6 +1,8 @@
 [submodule "HOPES"]
 	path = HOPES
-	url = https://semo.snu.ac.kr/semo/HOPES.git
+	url = https://github.com/cap-lab/CodeGeneration.git
+	branch = 1.4.1_minor_fix
 [submodule "SWComponentLib"]
 	path = SWComponentLib
-	url = https://semo.snu.ac.kr/semo/swcomponentlib.git
+	url = https://github.com/cap-lab/HiSARM_ComponentLibrary.git
+	branch = main
